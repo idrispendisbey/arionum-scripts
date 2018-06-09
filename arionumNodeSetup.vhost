@@ -1,0 +1,30 @@
+server {
+    listen 80 default_server;
+    server_name __DOMAIN__;
+    root /var/www/__DOMAIN__;
+
+    if ($request_method !~ ^(GET|HEAD|POST|PUT|DELETE)$) {
+        return 444;
+    }
+    index index.php index.html index.htm;
+    charset utf-8;
+    # do NOT show client error pages
+    error_page 401 403 404 /404.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    sendfile off;
+
+    location ~ \.php$ {
+        try_files $uri = 404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    location ~ /\.ht {
+        deny all;
+    }
+}
