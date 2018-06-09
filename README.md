@@ -16,15 +16,15 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 
 ## Arionum Node Installation 
 `$ cd ~`  
-`$ wget https://github.com/KyleFromOhio/arionum-scripts/blob/master/arionumNodeSetup.sh`  
-`$ chmod +x arionumNodeSetup.sh`
+`$ wget https://github.com/KyleFromOhio/arionum-scripts/blob/master/arionumNodeSetup`  
+`$ chmod +x arionumNodeSetup`
 
 ## Arionum Node Usage
-`$ sudo bash arionumNodeSetup.sh mainnet install`
+`$ sudo bash arionumNodeSetup mainnet install`
 
 ## Additional Options
-`$ sudo bash arionumNodeSetup.sh mainnet <install|upgrade|rebuild|reset>`  
-`$ sudo bash arionumNodeSetup.sh testnet <install|upgrade|reset>`  
+`$ sudo bash arionumNodeSetup mainnet <install|upgrade|rebuild|reset>`  
+`$ sudo bash arionumNodeSetup testnet <install|upgrade|reset>`  
  
  install   -- install Arionum node and required software and configure system  
  upgrade   -- upgrade existing Arionum node system and codebase  
