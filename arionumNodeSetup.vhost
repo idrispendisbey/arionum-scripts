@@ -1,7 +1,7 @@
 server {
     listen 80 default_server;
     server_name __DOMAIN__ www.__DOMAIN__;
-    root /var/www/__DOMAIN__;
+    root __WEBROOT__/__DOMAIN__;
 
     if ($request_method !~ ^(GET|HEAD|POST|PUT|DELETE)$) {
         return 444;
