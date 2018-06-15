@@ -15,14 +15,14 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 4. Not responsible if you hose your existing setup
 
 ## Arionum Node Installation 
-`$ cd ~`
-`$ mkdir scripts`
-`$ cd scripts`
+`$ cd ~`  
+`$ mkdir scripts`  
+`$ cd scripts`  
 `$ git clone https://github.com/KyleFromOhio/arionum-scripts.git`  
-`$ chmod +x aronode`
+`$ chmod +x aronode`  
 
 ## Arionum Node Usage
-`$ sudo bash aronode mainnet install`
+`$ sudo bash aronode mainnet install`  
 
 ## Additional Options
 `$ sudo bash aronode mainnet <install|upgrade|rebuild|reset>`  
