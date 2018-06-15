@@ -5,7 +5,7 @@ For more information see http://www.arionum.com
 
 # SCRIPT: Arionum Node Setup 
 
-This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(Mysql).  
+aronode: This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(Mysql).  
 It will clone the Arionum node software from https://github.com/arionum/node and configure the system.  
 
 ## Arionum Node Requirements
@@ -13,6 +13,7 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 2. Fresh clean vanilla server.  
 3. Nginx, PHP-FPM 7.2, and MariaDB will be installed and configured.  
 4. Not responsible if you hose your existing setup
+5. Minimum Hardware Recomendation: 2GB of RAM
 
 ## Arionum Node Installation 
 `$ cd ~`  
