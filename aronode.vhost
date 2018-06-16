@@ -11,6 +11,7 @@ server {
     # do NOT show client error pages
     error_page 401 403 404 /404.html;
 
+    # prevent nginx warnings
     client_body_buffer_size     10M;
     client_max_body_size        10M;
 
@@ -26,6 +27,8 @@ server {
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
+
+        fastcgi_read_timeout 180;
     }
     location ~ /\.ht {
         deny all;
