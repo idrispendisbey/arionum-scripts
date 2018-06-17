@@ -1,3 +1,1244 @@
 #!/bin/bash
 #
-# EXAMPLE: bash aronode mainnet install
+# A useful script for managing an Arionum testnet and/or mainnet node.
+# For more information see http://www.arionum.com
+#
+# Github: https://github.com/KyleFromOhio/arionum-scripts
+# Docs:   http://www.aro.wiki
+# Example: bash aronode mainnet install
+usage() {
+    echo "USAGE: "
+    echo "  $ sudo bash $0 <testnet|mainnet> <install|upgrade|reset|restart|status|diff|change|firewall>"
+    echo "  install   -- install Arionum node and services from scratch"
+    echo "  upgrade   -- upgrade existing Arionum node setup"
+    echo "  remove    -- purge nginx, php-fpm, mysql AND arionum content"
+    echo "    additional options ..."
+    echo "  change    -- change hostname ip/domain that peers see you as"
+    echo "  diff      -- view changes/code updates of Aronode's main repository"
+    echo "  firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
+    echo "  pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
+    echo "  reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain"
+    echo "  restart   -- restart all Arionum related services"
+    echo "  status    -- check status of services"
+
+}
+
+
+# DEBUG: prevent chaos; halt on error
+set -e
+
+# VARIABLES
+ERROR=false
+ERROR_CHAR="  ⌦  ERROR->"
+CHECK_CHAR="  √"
+INFO_CHAR="  ▷ INFO:"
+TASK_CHAR="  ▷ TASK:"
+
+DOMAIN=""
+WEBROOT="/var/www"
+SECUREOWNER="nobody"
+WEBOWNER="www-data"
+WEBGROUP="www-data"
+WEBCONFIG="include/config.inc.php"
+
+DBNAME="aronode"
+DBUSER="aronode"
+DBUSER_PASS=""
+DBROOT_PASS=""
+MYCNF_PATH="/root/.my.cnf"
+
+# used in rebuild function; to re-download just delete LOCAL_SNAPSHOT
+LOCAL_SNAPSHOT="arionum-daily.sql.gz"
+LOCAL_SNAPTEMP="arionum-daily.sql"
+REMOTE_SNAPSHOT="https://aro.pxgamer.xyz/daily/daily.sql.gz"
+
+SCRIPT_PATH=$(pwd)
+
+PACKAGES_GENERAL="git dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
+PHPv="7.2"
+PHPFPM_SERVICE="php7.2-fpm"
+PACKAGES_PHP="php7.2-cli php7.2-fpm php7.2-curl php7.2-gd php7.2-mysql php7.2-mbstring php7.2-common php-bcmath php-gmp"
+
+DATER=`date +%Y%m%d`
+TIMESTAMPER=`date '+%Y-%m-%d %H:%M:%S'`
+LOG_FILE="$SCRIPT_PATH/aronode_$DATER.log"
+
+# Setup logging
+END_LOG_MSG=""
+startLogging(){
+    exec > >(tee -ia $LOG_FILE)
+    exec 2>&1
+    echo "$TIMESTAMPER: start log"
+    END_LOG_MSG="$INFO_CHAR output logged to $LOG_FILE"
+}
+
+
+export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+
+# Adding LC_ALL LANG and LANGUAGE to user profile
+if [[ -f ~/.profile && ! "$(grep "en_US.UTF-8" ~/.profile)" ]]; then
+    { echo "LC_ALL=en_US.UTF-8";  echo "LANG=en_US.UTF-8";  echo "LANGUAGE=en_US.UTF-8"; } >> ~/.profile
+elif [[ -f ~/.bash_profile && ! "$(grep "en_US.UTF-8" ~/.bash_profile)" ]]; then
+    { echo "LC_ALL=en_US.UTF-8";  echo "LANG=en_US.UTF-8";  echo "LANGUAGE=en_US.UTF-8"; } >> ~/.bash_profile
+fi
+
+# For root user only
+if [ "$USER" != "root" ]; then
+    echo "$ERROR_CHAR installer must be run as root."
+    ERROR=true
+fi
+
+UNAME=$(uname)-$(uname -m) # Linux-x86_64
+OS_DISTRO=`lsb_release -i -s` # Ubuntu
+OS_VERSION=`lsb_release -r -s` # 16.04
+OS_NAME=`lsb_release -c -s` # xenial
+
+
+# Only tested on these OS
+if [ "$OS_DISTRO" != "Ubuntu" ]; then
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic."
+    ERROR=true
+fi
+if [[
+    "$OS_NAME" != "xenial" &&
+    "$OS_NAME" != "bionic"
+]]; then
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic."
+    ERROR=true
+fi
+
+# GET 1st argument: testnet | mainnet
+ARG_CONFIG_MODE=$1
+if [ -z "$ARG_CONFIG_MODE" ]; then
+    ARG_CONFIG_MODE="unknown"
+fi
+# allow help command
+case "$ARG_CONFIG_MODE" in
+    usage|help|h|-h|--help)
+        usage
+        exit 0
+    ;;
+esac
+# if not help then only other option is testnet|mainnet
+if [[ -z "$ARG_CONFIG_MODE" || ( "$ARG_CONFIG_MODE" != "testnet" && "$ARG_CONFIG_MODE" != "mainnet" ) ]]; then
+    echo "$ERROR_CHAR First argument must be either testnet or mainnet."
+    ERROR=true
+fi
+
+
+# GET 2nd argument: install | upgrade | remove
+ARG_CALL=""
+if [[ -z "2" || (
+    "$2" != "change" &&
+    "$2" != "diff" &&
+    "$2" != "firewall" &&
+    "$2" != "install" &&
+    "$2" != "pop" &&
+    "$2" != "remove" &&
+    "$2" != "reset" &&
+    "$2" != "restart" &&
+    "$2" != "status" &&
+    "$2" != "upgrade"
+    ) ]]; then
+    echo "$ERROR_CHAR Second argument is invalid."
+    ERROR=true
+else
+    ARG_CALL="$2"
+fi
+
+# DEBUG: print variables
+# ( set -o posix ; set ) | cat; exit 1;
+
+exitAsError() {
+    sleep 1
+    exit 1 # halt script with 1 error
+}
+
+# EXIT the script if there's error
+if [ $ERROR == true ]; then
+    usage
+    exitAsError
+fi
+
+
+# FUNCTIONS
+
+# check if testnet or mainnet
+nodeCheckConfigMode() {
+    #nodeFindDomainRoot
+    NODE_CONFIG_MODE="unknown"
+    if [[ -d "$DOMAINROOT" && -f "$DOMAINROOT/$WEBCONFIG" ]]; then
+        # Determine if testnet or mainnet
+        CHECK_CONFIG=$(grep -Po "(?<=$_config\['testnet'\]=)[^;]*" "${DOMAINROOT}/$WEBCONFIG")
+
+        if [[ "$CHECK_CONFIG" == "false" ]]; then
+            NODE_CONFIG_MODE="mainnet"
+        else
+            NODE_CONFIG_MODE="testnet"
+        fi
+    fi
+    echo "$INFO_CHAR NODE_CONFIG_MODE: $NODE_CONFIG_MODE"
+}
+
+generatePassword() {
+    PASS_LENGTH=16
+    echo $(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $PASS_LENGTH | head -n 1)
+}
+
+# find something like /var/www/mydomain.com
+nodeFindDomainRoot() {
+
+    DOMAINROOT="unknown"
+    if [ -d "$WEBROOT" ]; then
+        DOMAINROOT=$(find "$WEBROOT" -name "config.inc.php" | sed "s~/$WEBCONFIG~~" | tail -n 1)
+    fi
+    if [ "$DOMAINROOT" == "" ]; then
+        DOMAINROOT="unknown"
+    fi
+    echo "$INFO_CHAR DOMAINROOT: $DOMAINROOT"
+}
+
+# apt upgrade
+serverUpgrade() {
+    echo "$TASK_CHAR Updating server packages and installing required tools ..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get -qq update && apt-get -qq dist-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" && apt-get -qq autoremove -y
+    echo "$CHECK_CHAR Packages updated."
+}
+
+# create tmp/db-update for code to do a db update
+flagDbUpdate(){
+    #nodeFindDomainRoot
+    if [ "$DOMAINROOT" != "unknown" ]; then
+        cd $DOMAINROOT
+        touch tmp/db-update
+        chown $WEBOWNER:$WEBGROUP tmp/db-update
+        chmod 775 tmp/db-update
+        echo "$CHECK_CHAR Database flagged for an update."
+    else
+        echo "$ERROR_CHAR flagDbUpdate() Could not locate Arionum node software in '$DOMAINROOT'"
+        exitAsError
+    fi
+}
+# delete tmp/sanity-lock if exists
+removeSanityLock(){
+    #nodeFindDomainRoot
+    if [ "$DOMAINROOT" != "unknown" ]; then
+        cd $DOMAINROOT
+        if [ -f $DOMAINROOT/tmp/sanity-lock ]; then
+            rm $DOMAINROOT/tmp/sanity-lock
+            echo "$CHECK_CHAR sanity-lock removed."
+        fi
+    else
+        echo "$ERROR_CHAR removeSanityLock() Could not locate Arionum node software in '$DOMAINROOT'"
+        exitAsError
+    fi
+
+}
+
+# fix perms in $DOMAINROOT
+fixNodePermissions() {
+    #nodeFindDomainRoot
+    echo "$TASK_CHAR Setting permissions..."
+    if [ "$DOMAINROOT" != "unknown" ]; then
+        cd $DOMAINROOT
+        chown -R $SECUREOWNER $DOMAINROOT/*
+        chown -R $SECUREOWNER $DOMAINROOT/.[^.]*
+        chgrp -R $WEBGROUP $DOMAINROOT/*
+        chgrp -R $WEBGROUP $DOMAINROOT/.[^.]*
+        if [ -d $DOMAINROOT/tmp ]; then
+            chmod 775 -R $DOMAINROOT/tmp
+            chown -R $WEBOWNER $DOMAINROOT/tmp/*
+        fi
+        if [ -f $DOMAINROOT/tmp/db-update ]; then
+            chmod 775 -R $DOMAINROOT/tmp/db-update
+        fi
+        echo "$CHECK_CHAR Permissions set."
+    else
+        echo "$ERROR_CHAR fixNodePermissions() Could not locate Arionum node software in '$DOMAINROOT'"
+        exitAsError
+    fi
+}
+
+nodeRestart() {
+    nodeStop # stop nginx and php-fpm
+    nodeStopDb # stop mysql
+    nodeStart # start all
+}
+# stop nginx and php-fpm
+nodeStop() {
+    echo "$TASK_CHAR Stopping Nginx, PHP ..."
+    service nginx stop
+    service $PHPFPM_SERVICE stop
+}
+# stop mysql
+nodeStopDb() {
+    echo "$TASK_CHAR Stopping Mysql ..."
+    service mysql stop
+}
+# start nginx, php-fpm, mysql (if not running)
+nodeStart() {
+
+    service nginx start
+    service $PHPFPM_SERVICE start
+    service mysql start
+
+    # check for errors
+    upMysql
+    upNginx
+    upPhp
+    if [ "$UP_NGINX" == "no" ]; then
+        echo "$ERROR_CHAR nodeStart() nginx service failed. Check nginx logs in /var/log/";
+        exitAsError
+    else
+        echo "$CHECK_CHAR   nginx: started."
+    fi
+    if [ "$UP_PHP" == "no" ]; then
+        echo "$ERROR_CHAR nodeStart() php-fpm service failed. Check php-fpm logs in /var/log/";
+        exitAsError
+    else
+        echo "$CHECK_CHAR php-fpm: started."
+    fi
+    if [ "$UP_MYSQL" == "no" ]; then
+        echo "$ERROR_CHAR nodeStart() mysql service failed. Check mysql logs in /var/log/";
+        exitAsError
+    else
+        echo "$CHECK_CHAR   mysql: started."
+    fi
+}
+
+
+nodeRefresh() {
+    echo "$TASK_CHAR Refreshing node ..."
+    # documentation states to load node twice
+    curl -sSL -o /dev/null http://127.0.0.1:80/ 2>&1
+    curl -sSL -o /dev/null http://127.0.0.1:80/ 2>&1
+    echo "$CHECK_CHAR Node refreshed."
+}
+
+# check if mysql is up; NOTE: 0=true(no failures); 1=failure
+upMysql() {
+    CMD="mysql";
+    UP=$(pgrep "$CMD" | wc -l);
+    UP_MYSQL="yes";
+    if [ $UP -eq 0 ]; then UP_MYSQL="no"; fi
+}
+# check if php-fpm is up; NOTE: 0=true(no failures); 1=failure
+upPhp() {
+    CMD="php-fpm";
+    UP=$(pgrep "$CMD" | wc -l);
+    UP_PHP="yes";
+    if [ $UP -eq 0 ]; then UP_PHP="no"; fi
+}
+# check if nginx is up; NOTE: 0=true(no failures); 1=failure
+upNginx() {
+    CMD="nginx";
+    UP=$(pgrep "$CMD" | wc -l);
+    UP_NGINX="yes";
+    if [ $UP -eq 0 ]; then UP_NGINX="no"; fi
+}
+# check if ntp is up; NOTE: 0=true(no failures); 1=failure
+upNtp() {
+    CMD="ntp";
+    UP=$(pgrep "$CMD" | wc -l);
+    UP_NTP="yes";
+    if [ $UP -eq 0 ]; then UP_NTP="no"; fi
+}
+# check if ufw is up; NOTE: 0=true(no failures); 1=failure
+upUfw() {
+    UP=$(ufw status | grep active | wc -l);
+    UP_UFW="yes";
+    if [ $UP -eq 0 ]; then UP_UFW="no"; fi
+}
+
+packageInstallNginx(){
+    echo "$TASK_CHAR packageInstallNginx() Installing Nginx ..."
+
+    upNginx
+    if [ "$UP_NGINX" == "no" ]; then
+        cd /tmp/ && wget -O nginx_signing.key http://nginx.org/keys/nginx_signing.key
+        apt-key add nginx_signing.key
+        sh -c "echo 'deb http://nginx.org/packages/mainline/ubuntu/ '$(lsb_release -cs)' nginx' > /etc/apt/sources.list.d/nginx.list"
+        add-apt-repository ppa:ondrej/nginx-mainline -y
+        apt-get -qq update -y
+        apt-get -qq install nginx -y
+        service nginx restart
+    else
+        echo "$INFO_CHAR Nginx detected as running already.";
+    fi
+
+    #  check if nginx installed and running
+    upNginx
+    if [ "$UP_NGINX" == "no" ]; then
+        echo "$ERROR_CHAR packageInstallNginx() failed to start nginx service.";
+        exitAsError
+    else
+        echo "$CHECK_CHAR Nginx is installed and running."
+    fi
+}
+packageInstallPhp(){
+    echo "$TASK_CHAR packageInstallPhp() Installing PHP $PHPv and required modules ..."
+
+    apt-get -qq install software-properties-common -y
+    if [ $OS_NAME == "xenial" ]; then
+        apt-get -qq install python-software-properties -y
+    fi
+
+    upPhp
+    if [ "$UP_PHP" == "no" ]; then
+        add-apt-repository ppa:ondrej/php -y
+        apt-get -qq update -y
+        apt-get -qq install $PACKAGES_PHP -y
+    else
+        echo "$INFO_CHAR php-fpm detected as running already.";
+    fi
+
+    # check if php-fpm installed and running
+    upPhp
+    if [ "$UP_PHP" == "no" ]; then
+        echo "$ERROR_CHAR packageInstallPhp() failed to start php-fpm service.";
+        exitAsError
+    else
+        echo "$CHECK_CHAR PHP FPM $PHPv is installed and running."
+    fi
+}
+packageInstallMysql(){
+    echo "$TASK_CHAR packageInstallMysql() Installing Mysql (MariaDB) ..."
+
+    apt-get -qq install software-properties-common -y
+
+    upMysql
+    if [ "$UP_MYSQL" == "no" ]; then
+        apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+        sh -c "echo 'deb [arch=amd64,i386] https://mirrors.evowise.com/mariadb/repo/10.2/ubuntu '$(lsb_release -cs)' main' > /etc/apt/sources.list.d/MariaDB-10.2.list"
+        apt-get -qq update -y
+        # skip password prompt; will set later
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get -qq install mariadb-server mariadb-client -y
+    else
+        echo "$INFO_CHAR mysql detected as running already.";
+    fi
+
+    # check if marioadb installed and running
+    upMysql
+    if [ "$UP_MYSQL" == "no" ]; then
+        echo "$ERROR_CHAR packageInstallMysql() failed to start mysql(mariadb) service.";
+        exitAsError
+    else
+        echo "$CHECK_CHAR Mysql (MariaDB) is installed and running."
+    fi
+}
+packagePurgeMysql() {
+    echo "$TASK_CHAR packagePurgeMysql() Purging mysql ..."
+    service mysql stop
+    apt-get -qq --purge remove mariadb-server mariadb-client -y
+    apt-get -qq --purge remove mysql* -y
+    rm -rf /var/lib/mysql
+    rm -rf /var/log/mysql
+    rm $MYCNF_PATH
+    apt-get -qq autoremove -y
+    apt-get -qq autoclean -y
+    echo "$CHECK_CHAR Mysql purged."
+}
+
+packageInstallNtp(){
+    echo "$TASK_CHAR packageInstallNtp() Installing Ntp; Syncing server time to UTC ..."
+    apt-get -qq install ntp ntpdate -yyq
+    service ntp stop
+    timedatectl set-timezone UTC
+    service ntp stop
+    ntpdate pool.ntp.org
+    service ntp start
+    # check if ntp installed and running and set to UTC
+    upNtp
+    if [ "$UP_NTP" == "no" ]; then
+        echo "$ERROR_CHAR packageInstallNtp() failed to start ntp service.";
+        exitAsError
+    else
+        echo "$CHECK_CHAR Date/Time updated."
+    fi
+}
+
+packageInstallGeneral() {
+    echo "$TASK_CHAR packageInstallGeneral() Installing required packages ..."
+    apt-get -qq install $PACKAGES_GENERAL -y
+    echo "$CHECK_CHAR Server packages installed."
+}
+
+hardenMysql() {
+    mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
+    mysql -e "DELETE FROM mysql.user WHERE User='';"
+    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
+}
+hardenPHP() {
+    # TODO: php.ini, php-fpm conf
+    return 0
+}
+hardenNginx() {
+    # TODO: badbots, nginx.conf
+    return 0
+}
+hardenSSH() {
+    # TODO: ssh conf; change port; install fail2ban
+    return 0
+}
+checkSshPort() {
+    if [ -f /etc/ssh/sshd_config ]; then
+        SSH_PORT=$(awk '/^\s*Port\s+([0-9]{2,5})/{print}' /etc/ssh/sshd_config | cut -d'#' -f1 | cut -d';' -f1| tr -dc '0-9')
+    fi
+    if [ "$SSH_PORT" == "" ]; then
+        SSH_PORT=22
+    fi
+}
+hardenNetwork() {
+    # TODO: sysctl
+    return 0
+}
+hardenFirewall() {
+    echo "$TASK_CHAR hardenFirewall() Configuring UFW firewall ..."
+    apt-get -qq install ufw -y
+    service ufw restart
+    # check if ufw installed and running
+    upUfw
+    if [ "$UP_UFW" == "no" ]; then
+        echo "$ERROR_CHAR UFW firewall is not running.";
+        exitAsError
+    else
+        checkSshPort
+
+        ufw --force enable
+        ufw allow proto udp to 0.0.0.0/0 port 123 # ntp
+        ufw allow proto tcp to 0.0.0.0/0 port 22 # ssh
+        ufw allow proto tcp to 0.0.0.0/0 port 2222 # alternative ssh
+        if [ $SSH_PORT -gt 0 ]; then
+            ufw allow proto tcp to 0.0.0.0/0 port $SSH_PORT
+        fi
+        ufw allow proto tcp to 0.0.0.0/0 port 80 # http web
+        ufw allow proto tcp to 0.0.0.0/0 port 443 # https web
+        ufw default deny incoming
+        ufw default allow outgoing
+        service ufw restart
+        echo "$CHECK_CHAR UFW firewall configured."
+    fi
+    echo "$INFO_CHAR running # ufw status"
+    ufw status
+
+}
+
+enableFirewall() {
+    echo "$TASK_CHAR enableFirewall() Enabling UFW firewall ..."
+    # check if ufw installed and running
+    checkUfwInstalled
+    upUfw
+    if [ "$UP_UFW" == "no" ]; then
+        echo "$ERROR_CHAR UFW firewall is not running.";
+        exitAsError
+    else
+        ufw --force enable
+        echo "$CHECK_CHAR UFW firewall enabled."
+        echo "$INFO_CHAR running # ufw status"
+        ufw status
+    fi
+}
+
+disableFirewall() {
+    echo "$TASK_CHAR disableFirewall() Disabling UFW firewall ..."
+    # check if ufw installed and running
+    checkUfwInstalled
+    upUfw
+    if [ "$UP_UFW" == "no" ]; then
+        echo "$ERROR_CHAR UFW firewall is not running.";
+        exit 1 # halt script with error
+    else
+        ufw disable
+        echo "$CHECK_CHAR UFW firewall disabled."
+    fi
+}
+
+removeFirewall() {
+    echo "$TASK_CHAR removeFirewall() Removing UFW firewall ..."
+    # check if ufw installed and running
+    checkUfwInstalled
+    upUfw
+    if [ "$UP_UFW" == "yes" ]; then
+        service ufw stop
+    fi
+    apt-get -qq --purge remove ufw -y
+    echo "$CHECK_CHAR UFW firewall removed."
+}
+
+checkUfwInstalled() {
+    installedUFW="$(type -p "ufw")"
+    if [ ! installedUFW ]; then
+        echo "$ERROR_CHAR UFW not installed. To install try 'apt install ufw' instead."
+        exitAsError
+    fi
+}
+
+setupMysqlDatabase(){
+    echo "$TASK_CHAR Setting up mysql database..."
+    # check if config exists; if so use
+    if [ -f $MYCNF_PATH ]; then
+        DBROOT_PASS=$(grep -Po "(?<=password=)[^;]*" "$MYCNF_PATH")
+        DBUSER_PASS=$(grep -Po "(?<=aronode_pass=)[^;]*" "$MYCNF_PATH")
+        echo "$INFO_CHAR database config found in $MYCNF_PATH"
+    else
+        # Generate new user password(s)
+        DBROOT_PASS=$(generatePassword)
+        DBUSER_PASS=$(generatePassword)
+        # Reset root pass
+        echo "$INFO_CHAR setting root pass."
+        mysql -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
+        echo "$INFO_CHAR root pass set."
+
+        # Create, write to and save mysql config to .my.cnf file
+        echo "$INFO_CHAR saving root pass to $MYCNF_PATH"
+        touch $MYCNF_PATH
+        chmod 0600 $MYCNF_PATH
+        > $MYCNF_PATH
+        echo "[client]" >> $MYCNF_PATH
+        echo "user=root" >> $MYCNF_PATH
+        echo "password=$DBROOT_PASS" >> $MYCNF_PATH
+        echo "# aronode_user=$DBUSER" >> $MYCNF_PATH
+        echo "# aronode_pass=$DBUSER_PASS" >> $MYCNF_PATH
+        echo "$INFO_CHAR root pass saved to $MYCNF_PATH"
+    fi
+
+    # create db and user if not exists
+    if [ -d /var/lib/mysql/$DBNAME ] ; then
+        echo "$INFO_CHAR $DBNAME database already exists."
+    else
+        mysql -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+        echo "$TASK_CHAR create arionum database"
+    fi
+    USER_EXISTS="$(mysql -sse "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '$DBUSER')")"
+    if [ "$USER_EXISTS" = 1 ]; then
+        echo "$INFO_CHAR $DBUSER mysql user already exists."
+    else
+        echo "$TASK_CHAR create arionum database user"
+        mysql -e "CREATE USER ${DBUSER}@localhost IDENTIFIED BY '${DBUSER_PASS}';"
+        mysql -e "GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'localhost';"
+    fi
+    mysql -e "FLUSH PRIVILEGES;"
+
+    echo "$CHECK_CHAR Database setup finished."
+}
+
+setupNginxVhost() {
+    echo "$TASK_CHAR Setting up default website in Nginx ..."
+
+    # check if directories exists; create otherwise
+    DIR="/etc/nginx/sites-enabled"
+    if [ ! -d "$DIR" ]; then
+        mkdir $DIR
+    fi
+    DIR="/etc/nginx/sites-available"
+    if [ ! -d "$DIR" ]; then
+        mkdir $DIR
+    fi
+    DOMAINROOT=$WEBROOT/$DOMAIN
+    if [ ! -d $DOMAINROOT ]; then
+        mkdir -p $DOMAINROOT
+    fi
+    # secure domain root
+    cd $DOMAINROOT
+    chown $SECUREOWNER $WEBROOT
+    chgrp $WEBGROUP $WEBROOT
+    chmod 0755 $DOMAINROOT
+
+    # update nginx user to WEBUSER:WEBGROUP:
+    sed -i "s/user  nginx;/user  $WEBOWNER $WEBOWNER;/g" /etc/nginx/nginx.conf
+
+    # create/delete default vhost file(s)
+    if [ -L /etc/nginx/sites-enabled/default ]; then
+        unlink /etc/nginx/sites-enabled/default
+    fi
+    if [ -L /etc/nginx/sites-enabled/default.vhost ]; then
+        unlink /etc/nginx/sites-enabled/default.vhost
+    fi
+    if [ -f /etc/nginx/conf.d/default.conf ]; then
+        rm /etc/nginx/conf.d/default.conf
+    fi
+
+    # setup vhosts config
+    if [ ! -f /etc/nginx/conf.d/vhosts.conf ]; then
+        echo "include /etc/nginx/sites-enabled/*;" > /etc/nginx/conf.d/vhosts.conf
+    fi
+    if [ -f /etc/nginx/sites-available/default ]; then
+        mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.vhost
+    fi
+    if [ ! -f $SCRIPT_PATH/aronode.vhost ]; then
+        echo "$ERROR_CHAR setupNginxVhost() $SCRIPT_PATH/aronode.vhost not found. Check github and download it.";
+        exitAsError
+    fi
+    # enable vhost
+    VHOST_PATH_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.vhost"
+    VHOST_PATH_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.vhost"
+    cat $SCRIPT_PATH/aronode.vhost > $VHOST_PATH_AVAILABLE
+    sed -i "s/__DOMAIN__/$DOMAIN/g" $VHOST_PATH_AVAILABLE
+    sed -i "s~__WEBROOT__~$WEBROOT~g" $VHOST_PATH_AVAILABLE
+    if [ ! -L "$VHOST_PATH_ENABLED" ]; then
+        ln -s $VHOST_PATH_AVAILABLE $VHOST_PATH_ENABLED
+        echo "$CHECK_CHAR vhost setup in Nginx at $VHOST_PATH_AVAILABLE"
+    fi
+
+    service nginx restart
+
+    #  check if nginx installed and running
+    upNginx
+    if [ "$UP_NGINX" == "no" ]; then
+        echo "$ERROR_CHAR setupNginxVhost() failed to start nginx service. Bad vhost config?";
+        exitAsError
+    else
+        echo "$CHECK_CHAR Nginx restarted and running."
+    fi
+}
+
+gitInitNode() {
+    echo "$TASK_CHAR Installing Arionum node software ..."
+
+    if [[ -d "$DOMAINROOT" ]]; then
+        cd $DOMAINROOT
+        # check git exists so it won't halt process on error
+        if [[ ! -d .git ]]; then
+            git init
+            git remote add origin https://github.com/arionum/node.git
+        fi
+
+        git fetch --all --prune
+        git checkout master
+        echo "$CHECK_CHAR Download of Arionum node finished."
+    else
+        echo "$ERROR_CHAR gitInitNode() $DOMAINROOT path not found.";
+        exitAsError
+    fi
+}
+
+setupNodeConfig() {
+    echo "$TASK_CHAR Updating node database config..."
+    #nodeFindDomainRoot
+    ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
+    sed -i -r "s/(dbname=)([^\"]*)/\1$DBNAME/" $ARONODE_CONFIG
+    sed -i -r "s/($_config\['db_user'\]=\")([^\"]*)/\1$DBUSER/" $ARONODE_CONFIG
+    sed -i -r "s/($_config\['db_pass'\]=\")([^\"]*)/\1$DBUSER_PASS/" $ARONODE_CONFIG
+    echo "$CHECK_CHAR Node config Updated."
+}
+
+nodeInstall() {
+
+    # Intro
+    echo ""
+    echo "$INFO_CHAR Welcome to Arionum."
+    echo "$INFO_CHAR An arionum node runs as a PHP website."
+    echo "$INFO_CHAR This script will install & configure Nginx, Mysql, Php-fpm, and other required packages."
+    echo "$INFO_CHAR It will configure a vhost in nginx, clone the arionum node repo, and setup the database."
+    echo "$INFO_CHAR Get an Arionum mainnet (or testnet) node up and running in seconds!"
+    echo "$INFO_CHAR Brought to you by KyleFromOhio and www.aro.wiki"
+
+    # check RAM
+    checkRAM
+    if [[ "$ARG_CONFIG_MODE" == "mainnet" && $RAMTOTAL -lt 1800 ]]; then
+        echo ""
+        read -p "WARNING: Detected < 2GB RAM. Node may have issues syncing beyond block 10800. Continue? (yes|no): " USER_RAM_CONTINUE
+        if ! [[ "$USER_RAM_CONTINUE" == "yes" ]]; then
+            echo -e "$ERROR_CHAR You did not type 'yes'. Halting setup.\n"
+            exitAsError
+        fi
+    fi
+
+    # Prompt user for domain name
+    echo ""
+    echo "$INFO_CHAR You can access the node via the main server IP address. A domain name is optional."
+    read -p "QUESTION: Enter a custom domain name (arionum.com): " DOMAIN
+    if [[ "$DOMAIN" == "" ]]; then
+        DOMAIN="arionum.com"
+    fi
+    # check DOMAIN is valid; [a-z0-9\-\.]; start and end with a letter; replace any capital letters with lowercase automatically.
+    DOMAIN=`echo "$DOMAIN" | awk '{print tolower($0)}'`
+    # strip www. from beginning
+    DOMAIN=`echo "$DOMAIN" | sed -e "s/^www\.//"`
+    REGEX='^[a-z]+[a-z0-9\-\.]{1,252}[a-z]{2,24}$';
+    if ! [[ "$DOMAIN" =~ $REGEX ]]; then
+        echo "$ERROR_CHAR Invalid domain entered ..."
+        exitAsError
+    fi
+
+    echo "$TASK_CHAR Starting Arionum node installation ..."
+    echo "$INFO_CHAR     DOMAIN: $DOMAIN"
+
+    serverUpgrade
+    packageInstallNtp
+    packageInstallGeneral
+    packageInstallPhp
+    packageInstallNginx
+    packageInstallMysql
+    setupMysqlDatabase
+    setupNginxVhost
+
+    # TODO: move these to own function/call?
+    # run basic mysql security commands
+    ####echo "$TASK_CHAR Hardening system ..."
+    ####hardenMysql
+    ####hardenPHP
+    ####hardenNginx
+    ####hardenSSH
+    ####hardenNetwork
+    ####hardenFirewall
+    ####echo "$CHECK_CHAR System hardened."
+
+    gitInitNode
+    setupNodeConfig
+    fixNodePermissions
+
+    nodeStop
+    if [[ "$ARG_CONFIG_MODE" == "testnet" ]]; then
+        nodeTestnetConfig
+    fi
+    nodeStart
+    nodeRefresh
+
+    echo ""
+    echo "$CHECK_CHAR Node Installation Complete."
+    echo ""
+    echo "$INFO_CHAR MySQL passwords available in: $MYCNF_PATH"
+    echo "$INFO_CHAR Node installed to: $DOMAINROOT"
+    echo "$INFO_CHAR Node config in: $DOMAINROOT/$WEBCONFIG"
+    echo "$INFO_CHAR Visit: http://YourIpAddressOrDomain/ OR http://127.0.0.1 locally and you should see current arionum block number."
+    echo "$INFO_CHAR API Documentation: http://YourIpAddressOrDomain/doc/"
+    echo "$INFO_CHAR API Endpoint: http://YourIpAddressOrDomain/api.php"
+}
+
+
+nodeUpgrade() {
+    echo "Starting Arionum node upgrade ..."
+
+    echo "$TASK_CHAR Upgrading server packages ..."
+    serverUpgrade
+    echo "$CHECK_CHAR Server packages updated."
+
+    echo "$TASK_CHAR Locating Arionum node installation directory ..."
+    # detect path of node software; look for $WEBCONFIG
+    #nodeFindDomainRoot
+    # cd to domain root path
+    if [ -d $DOMAINROOT ]; then
+        cd $DOMAINROOT
+        echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
+        echo "$TASK_CHAR Getting node updates from git ..."
+        git pull origin master
+        echo "$CHECK_CHAR Node upgrade complete."
+    else
+        echo "$ERROR_CHAR Arionum Node is not installed. Nothing to upgrade. Try install instead."
+        exitAsError
+    fi
+
+}
+
+
+# TODO: importing has been causing timeouts; will need more testing
+nodeRebuild() {
+
+    # check if mainnet ONLY; ERROR if testnet.
+    #nodeCheckConfigMode
+    if [[ "$NODE_CONFIG_MODE" != "mainnet" ]]; then
+        echo "$CHECK_CHAR Arionum node is set to testnet. Started db from scratch."
+    else
+
+        # 1) get latest snapshot
+        if [ ! -f $LOCAL_SNAPSHOT ]; then
+            echo "$INFO_CHAR downloading daily snapshot of blockchain ..."
+            curl --progress-bar -o $LOCAL_SNAPSHOT $REMOTE_SNAPSHOT
+        fi
+
+        # FIX BUG: foreign key restraint on import of dump
+        CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
+        CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
+
+        # 2) pv unzip
+        echo "$INFO_CHAR extracting daily snapshot of blockchain (PLEASE WAIT) ..."
+        gunzip -c --keep $LOCAL_SNAPSHOT | pv > $LOCAL_SNAPTEMP
+
+        # 3) append top/bottom commands
+        echo "$INFO_CHAR adding foreign_key_checks fix ..."
+        sed -i "1s/^/$CMD_BEFORE_IMPORT\n/" $LOCAL_SNAPTEMP
+        echo $CMD_AFTER_IMPORT >> $LOCAL_SNAPTEMP
+        # 4) import sql.gz file into mysql database w/ progress bar
+        echo "$INFO_CHAR importing daily snapshot of blockchain  (PLEASE WAIT) ..."
+        pv $LOCAL_SNAPTEMP | mysql -D $DBNAME
+
+        # 5) cleanup
+        rm $LOCAL_SNAPTEMP
+
+    fi
+
+}
+
+nodeEmptyChain() {
+    echo "$INFO_CHAR Emptying database: ${DBNAME}"
+    # use arionum utility
+    PWD=`pwd`
+    cd $DOMAINROOT
+    php -f util.php clean
+    cd $PWD
+}
+nodeDropDb() {
+    echo "$INFO_CHAR Dropping database: ${DBNAME}"
+    # delete mysql tables
+    mysql -e "DROP DATABASE IF EXISTS ${DBNAME};"
+    mysql -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8mb4 */;"
+}
+
+nodeRemove() {
+
+    echo ""
+    read -p "WARNING: This will purge ALL Nginx|Php-fpm|Mysql AND Arionum content. Continue? (yes|no): " USER_REMOVE_CONTINUE
+    if ! [[ "$USER_REMOVE_CONTINUE" == "yes" ]]; then
+        echo -e "$ERROR_CHAR You did not type 'yes'. Halting setup.\n"
+        exitAsError
+    fi
+
+    echo "$INFO_CHAR Starting removal of Arionum node ..."
+
+    # stop services
+    service nginx stop
+    service $PHPFPM_SERVICE stop
+
+    # remove/purge nginx/php-fpm
+    apt-get -qq --purge remove nginx
+    apt-get -qq --purge remove $PACKAGES_PHP -y
+
+    # remove/purge mysql
+    packagePurgeMysql
+
+    apt-get -qq autoremove -y
+    apt-get -qq autoclean -y
+
+    # delete $DOMAINROOT contents
+    #nodeFindDomainRoot
+    if [ -d $DOMAINROOT ]; then
+        rm -Rf $DOMAINROOT
+        echo "$CHECK_CHAR $DOMAINROOT directory removed."
+    else
+        echo "$ERROR_CHAR $DOMAINROOT not found. Nothing to remove."
+    fi
+}
+
+nodeTestnetConfig() {
+    #nodeFindDomainRoot
+    if [ $DOMAINROOT != false ]; then
+        # set $_config['testnet']=true;
+        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
+        if [ -f $ARONODE_CONFIG ]; then
+            sed -i -re "s/('testnet'\]=)([trueTRUEfalsFALS]*);/\1true;/" $ARONODE_CONFIG
+            echo "$CHECK_CHAR Config set to 'testnet'"
+        else
+            echo "$ERROR_CHAR $ARONODE_CONFIG not found. testnet not set."
+        fi
+    else
+        echo "$ERROR_CHAR $DOMAINROOT not found. Nothing to remove."
+    fi
+}
+
+nodeMainnetConfig() {
+
+    # check RAM
+    checkRAM
+    if [[ $RAMTOTAL -lt 1800 ]]; then
+        echo ""
+        read -p "WARNING: Detected < 2GB RAM. Node may have issues syncing beyond block 10800. Continue? (yes|no): " USER_RAM_CONTINUE
+        if ! [[ "$USER_RAM_CONTINUE" == "yes" ]]; then
+            echo -e "$ERROR_CHAR You did not type 'yes'. Halting setup.\n"
+            exitAsError
+        fi
+    fi
+
+    #nodeFindDomainRoot
+    if [ $DOMAINROOT != false ]; then
+        # set $_config['testnet']=false;
+        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
+        if [ -f $ARONODE_CONFIG ]; then
+            sed -i -re "s/('testnet'\]=)([trueTRUEfalsFALS]*);/\1false;/" $ARONODE_CONFIG
+            echo "$CHECK_CHAR Config set to 'mainnet'"
+        else
+            echo "$ERROR_CHAR $ARONODE_CONFIG not found. mainnet not set."
+        fi
+    else
+        echo "$ERROR_CHAR $DOMAINROOT not found. Nothing to remove."
+    fi
+}
+
+nodeStatus() {
+    upNginx
+    if [ "$UP_NGINX" == "yes" ]; then
+        echo "$CHECK_CHAR   nginx: OK"
+    else
+        echo "$ERROR_CHAR   nginx: FAIL"
+    fi
+
+    upPhp
+    if [ "$UP_PHP" == "yes" ]; then
+        echo "$CHECK_CHAR php-fpm: OK"
+    else
+        echo "$ERROR_CHAR php-fpm: FAIL"
+    fi
+
+    upMysql
+    if [ "$UP_MYSQL" == "yes" ]; then
+        echo "$CHECK_CHAR   mysql: OK"
+    else
+        echo "$ERROR_CHAR   mysql: FAIL"
+    fi
+
+
+    # check for 200 response or not
+    echo "$TASK_CHAR Checking node status ..."
+    STATUS=$(curl -Ssi http://127.0.0.1:80/ | head -n 1 | cut -d$' ' -f2)
+    if [ "$STATUS" == "200" ]; then
+        echo "$CHECK_CHAR http://127.0.0.1:80/ => 200 response: OK"
+        echo "$INFO_CHAR Querying API for current block http://127.0.0.1:80/api.php?q=currentBlock ..."
+        CURRENT_BLOCK=$(curl -Ss "http://127.0.0.1:80/api.php?q=currentBlock" | awk -F'"height":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
+        if [ $CURRENT_BLOCK -gt 0 ]; then
+            echo "$CHECK_CHAR Current Block: $CURRENT_BLOCK"
+            # get time behind
+            BLOCKDATE=$(curl -Ss "http://127.0.0.1:80/api.php?q=getBlock&height=$CURRENT_BLOCK" | awk -F'"date":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
+            DATER=`date +%s`
+            BEHIND_SECONDS=`expr $DATER - $BLOCKDATE`
+            #BEHIND_HOURS=`expr $BEHIND_MINS / 60`
+            #BEHIND_DAYS=`expr $BEHIND_HOURS / 24`
+            if [ $BEHIND_SECONDS -lt 60 ]; then
+                BEHIND_FORMAT=`echo $BEHIND_SECONDS`
+                BEHIND_LABEL="seconds"
+            fi
+            if [ $BEHIND_SECONDS -gt 60 ]; then
+                BEHIND_MINS=`expr $BEHIND_SECONDS / 60`
+                BEHIND_FORMAT=`echo $BEHIND_MINS`
+                BEHIND_LABEL="minutes"
+            fi
+            if [ $BEHIND_SECONDS -gt 3600 ]; then
+                BEHIND_HOURS=`expr $BEHIND_SECONDS / 60 / 60`
+                BEHIND_FORMAT=`echo $BEHIND_HOURS`
+                BEHIND_LABEL="hours"
+            fi
+            if [ $BEHIND_SECONDS -gt 86400 ]; then
+                BEHIND_DAYS=`expr $BEHIND_SECONDS / 60 / 60 / 24`
+                BEHIND_FORMAT=`echo $BEHIND_DAYS`
+                BEHIND_LABEL="days"
+            fi
+            echo -e "$CHECK_CHAR   Node Behind: $BEHIND_FORMAT $BEHIND_LABEL"
+
+        else
+            echo -e "$ERROR_CHAR Could not query api for current block. Something is not right."
+        fi
+    else
+        echo "$ERROR_CHAR node status: FAIL"
+    fi
+}
+
+nodeDiff() {
+    echo "$TASK_CHAR nodeDiff() Checking git for available updates ..."
+    #nodeFindDomainRoot
+    cd $DOMAINROOT
+    git fetch origin
+    git diff --color master origin/master
+    echo "$CHECK_CHAR Any available updates have been printed to screen above."
+
+}
+
+nodeChangeHostname() {
+    # Prompt user for IP; auto detect it
+    DETECT_IP4=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1 | head -n1)
+    echo ""
+    echo "$INFO_CHAR This will update the hostname setting in the node db config."
+    echo "$INFO_CHAR Other peers will see this hostname in their peers list."
+    echo "$INFO_CHAR You may enter a domain name but it must resolve to your server or risk failing to sync."
+
+    # TDOO: read -p "QUESTION: Do you want your node use a domain OR an IP4 address? (ip|domain): " USER_IPORDOMAIN
+    # TODO: check if user enter ip or domain as option
+    # TODO: if entered 'ip' ask for it
+    # TODO: if entered 'domain' ask for it
+    read -p "QUESTION: Enter new node hostname OR public IP4 address ($DETECT_IP4): " NEWHOSTNAME
+    if [[ "$NEWHOSTNAME" == "" ]]; then
+        NEWHOSTNAME="$DETECT_IP4"
+    fi
+    # check DOMAIN/IP is valid; [a-z0-9\-\.]; start and end with a letter; replace any capital letters with lowercase automatically.
+    NEWHOSTNAME=`echo "$NEWHOSTNAME" | awk '{print tolower($0)}'`
+    # strip http:// from beginning
+    NEWHOSTNAME=`echo "$NEWHOSTNAME" | sed -e "s/^http:\/\///"`
+    NEWHOSTNAME=`echo "$NEWHOSTNAME" | sed -e "s/^https:\/\///"`
+
+    # TODO: detect if private ip address
+    # TODO: detect if valid (only [#.] )
+    # TODO: etect if valid domain
+    #REGEX='^[a-z]+[a-z0-9\-\.]{1,252}[a-z]{2,24}$';
+    #if ! [[ "$DOMAIN" =~ $REGEX ]]; then
+    #    echo "$ERROR_CHAR Invalid domain entered ..."
+    #    exitAsError
+    #fi
+    #echo "$ERROR_CHAR Invalid ip4 entered ..."
+    #exitAsError
+
+    echo "$INFO_CHAR You entered: $NEWHOSTNAME"
+    echo "$INFO_CHAR We detected: $DETECT_IP4"
+    if ! [[ "$DETECT_IP4" == "$NEWHOSTNAME" ]]; then
+        read -p "QUESTION: hostname you entered and IP we detected do NOT match. Continue anyways? (yes|no) " USER_IP4_CONTINUE
+        if ! [[ "$USER_IP4_CONTINUE" == "yes" ]]; then
+            echo -e "$ERROR_CHAR You did not type 'yes'. Halting setup.\n"
+            exitAsError
+        fi
+    fi
+    # update config in db with new hosname via mysql
+    mysql -e "UPDATE ${DBNAME}.config SET val='http://${NEWHOSTNAME}' WHERE cfg='hostname';"
+}
+queueSanity() {
+    mysql -e "UPDATE ${DBNAME}.config SET val=0 WHERE cfg='sanity_last' LIMIT 1;"
+}
+checkRAM() {
+    RAMTOTAL=$(free -m | awk '/^Mem:/{print $2}')
+}
+
+# determine wheher user entered mainnet or testnet
+nodeFindDomainRoot
+nodeCheckConfigMode
+
+# yell at user if they entered wrong CONFIG_MODE for the call
+if [ ! "$NODE_CONFIG_MODE" == "$ARG_CONFIG_MODE" ]; then
+    if [[
+        "$ARG_CALL" == "upgrade" ||
+        "$ARG_CALL" == "rebuild" ||
+        "$ARG_CALL" == "change"
+    ]]; then
+        echo -e "$ERROR_CHAR Wrong mode entered. Config detected is $NODE_CONFIG_MODE. You entered $ARG_CONFIG_MODE\n"
+        exitAsError
+    fi
+fi
+
+# Determine 2nd argument action
+case "$ARG_CALL" in
+    "change")
+        nodeChangeHostname
+
+        nodeStop
+        flagDbUpdate
+        removeSanityLock
+        nodeStart
+
+        queueSanity
+        nodeRefresh
+        ;;
+    "diff")
+        nodeDiff
+        ;;
+    "firewall")
+        if [[ -z "3" || ( "$3" != "install" && "$3" != "remove" && "$3" != "on" && "$3" != "off") ]]; then
+            echo "$ERROR_CHAR Third argument must be either install, remove, on or off."
+        fi
+
+        case "$3" in
+            "install")
+                hardenFirewall
+                ;;
+            "remove")
+                removeFirewall
+                ;;
+            "on")
+                enableFirewall
+                ;;
+            "off")
+                disableFirewall
+                ;;
+        esac
+        ;;
+    "install")
+        startLogging
+        nodeInstall
+        ;;
+    "pop")
+        startLogging
+
+        # get third argument (optional) for # of blocks to pop
+        POP_COUNT=1
+        case $3 in
+            ''|*[!0-9]*) POP_COUNT=1 ;;
+            *) POP_COUNT=$3 ;;
+        esac
+
+        # pop X blocks from db
+        echo "$INFO_CHAR Popping $POP_COUNT records."
+        PWD=`pwd`
+        cd $DOMAINROOT
+        php -f util.php pop $POP_COUNT
+        cd $PWD
+
+        nodeStop
+        removeSanityLock
+
+        nodeStart
+        queueSanity
+
+        nodeRefresh
+        ;;
+    "remove")
+        startLogging
+        nodeRemove
+        ;;
+    "reset")
+        startLogging
+
+        # stop nginx/php-fpm services; leave mysql on
+        nodeStop
+
+        if [[ "$ARG_CONFIG_MODE" == "mainnet" ]]; then
+            nodeMainnetConfig
+            nodeEmptyChain
+        fi
+        if [[ "$ARG_CONFIG_MODE" == "testnet" ]]; then
+            nodeTestnetConfig
+            nodeEmptyChain
+        fi
+        flagDbUpdate
+        removeSanityLock
+
+        nodeStart
+        queueSanity
+
+        nodeRefresh
+        ;;
+    "restart")
+        nodeStop
+        removeSanityLock
+        nodeStopDb
+        nodeStart
+        queueSanity
+        nodeStatus
+        ;;
+    "status")
+        nodeStatus
+        ;;
+    "upgrade")
+        startLogging
+        nodeStop
+        nodeStopDb
+
+        nodeUpgrade
+
+        nodeStop
+        flagDbUpdate
+        removeSanityLock
+
+        nodeStart
+        queueSanity
+
+        nodeRefresh
+        ;;
+    "usage|help|h|-h|--help")
+        usage
+        ;;
+esac
+
+echo -e "\n$END_LOG_MSG"
+echo -e "$CHECK_CHAR SCRIPT COMPLETE. For more guides, visit www.aro.wiki"
+echo -e ""
+
+exit 0
+
