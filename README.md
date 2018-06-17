@@ -9,7 +9,7 @@ aronode: This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(
 It will clone the Arionum node software from https://github.com/arionum/node and configure the system.  
 
 ## Arionum Node Requirements
-1. Ubuntu 16.04 (may work on newer debian/ubuntu distros)  
+1. Ubuntu 16.04/18.04 (may work on newer debian/ubuntu distros)  
 2. Fresh clean vanilla server.  
 3. Nginx, PHP-FPM 7.2, and MariaDB will be installed and configured.  
 4. Not responsible if you hose your existing setup
@@ -17,9 +17,11 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 
 ## Arionum Node Installation 
 `$ cd ~`  
+`$ sudo apt-get update`  
+`$ sudo apt-get install git -y`
 `$ mkdir scripts`  
 `$ cd scripts`  
-`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git`  
+`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .`  
 `$ chmod +x aronode`  
 
 ## Arionum Node Usage
