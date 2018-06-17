@@ -25,11 +25,11 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `$ chmod +x aronode`  
 
 ## Arionum Node Usage
-`$ sudo bash aronode mainnet install`  
+`$ sudo bash aronode mainnet install`
+`$ sudo bash aronode mainnet upgrade`
 
 ## Additional Options
-`$ sudo bash aronode mainnet <install|upgrade|rebuild|reset>`  
-`$ sudo bash aronode usage`  
+`$ sudo bash aronode help`  
  
 `$ sudo bash $0 <testnet|mainnet> <install|upgrade|remove|reset|restart|status|pop|diff|change|firewall>`  
 `    install   -- install Arionum node and services from scratch`  
