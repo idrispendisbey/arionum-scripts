@@ -1,7 +1,8 @@
 # Arionum Scripts
 
 A series of useful scripts for managing an Arionum testnet and/or mainnet node.  
-For more information see http://www.arionum.com
+For more information, visit official site at http://www.arionum.com   
+For some technical guides, visit http://www.aro.wiki
 
 # SCRIPT: Arionum Node Setup 
 
