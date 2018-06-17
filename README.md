@@ -15,7 +15,7 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 4. Not responsible if you hose your existing setup
 5. Minimum Hardware Recomendation: 2GB of RAM
 
-## Arionum Node Installation 
+## Arionum Node Installation Example
 `$ cd ~`  
 `$ sudo apt-get update`  
 `$ sudo apt-get install git -y`  
@@ -23,10 +23,16 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `$ cd scripts`  
 `$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .`  
 `$ chmod +x aronode`  
+`$ sudo bash aronode mainnet install` 
+
+## Update Aronode script to Latest Version
+`$ cd ~/scripts`  
+`$ git pull origin master`  
 
 ## Arionum Node Usage
-`$ sudo bash aronode mainnet install`
-`$ sudo bash aronode mainnet upgrade`
+`$ sudo bash aronode mainnet install`  
+`$ sudo bash aronode mainnet upgrade`  
+`$ sudo bash aronode mainnet status`
 
 ## Additional Options
 `$ sudo bash aronode help`  
