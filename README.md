@@ -38,7 +38,7 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 ## Additional Options
 `$ sudo bash aronode help`  
  
-`$ sudo bash $0 <testnet|mainnet> <install|upgrade|remove|reset|restart|status|pop|diff|change|firewall>`  
+`$ sudo bash aronode <testnet|mainnet> <install|upgrade|remove|reset|restart|status|pop|diff|change|firewall>`  
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
 `    remove    -- purge nginx, php-fpm, mysql AND arionum content`  
