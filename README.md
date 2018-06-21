@@ -42,6 +42,8 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
 `    remove    -- purge nginx, php-fpm, mysql AND arionum content`  
+`    backup    -- will dump 'blocks, accounts, transactions, mempool' tables to a gzipped sql file`  
+`    import    -- will import a gzipped sql file; 3rd argument (optional): <filename>`  
 `    change    -- change hostname ip/domain that peers see you as`  
 `    diff      -- view changes/code updates of Aronode's main repository`  
 `    firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>`  
