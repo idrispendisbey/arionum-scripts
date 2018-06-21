@@ -13,6 +13,8 @@ usage() {
     echo "  upgrade   -- upgrade existing Arionum node setup"
     echo "  remove    -- purge nginx, php-fpm, mysql AND arionum content"
     echo "    additional options ..."
+    echo "  backup    -- will dump 'blocks, accounts, transactions, mempool' tables to a gzipped sql file"
+    echo "  import    -- will import a gzipped sql file; 3rd argument (optional): <filename>"
     echo "  change    -- change hostname ip/domain that peers see you as"
     echo "  diff      -- view changes/code updates of Aronode's main repository"
     echo "  firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
@@ -47,6 +49,10 @@ DBUSER_PASS=""
 DBROOT_PASS=""
 MYCNF_PATH="/root/.my.cnf"
 
+# import variables
+BACKUP_FILENAME="aronode_dump"
+BLOCKCHAIN_TABLES="blocks accounts transactions mempool"
+
 # used in rebuild function; to re-download just delete LOCAL_SNAPSHOT
 LOCAL_SNAPSHOT="arionum-daily.sql.gz"
 LOCAL_SNAPTEMP="arionum-daily.sql"
@@ -54,7 +60,7 @@ REMOTE_SNAPSHOT="https://aro.pxgamer.xyz/daily/daily.sql.gz"
 
 SCRIPT_PATH=$(pwd)
 
-PACKAGES_GENERAL="git dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
+PACKAGES_GENERAL="git pigz dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
 PHPv="7.2"
 PHPFPM_SERVICE="php7.2-fpm"
 PACKAGES_PHP="php7.2-cli php7.2-fpm php7.2-curl php7.2-gd php7.2-mysql php7.2-mbstring php7.2-common php-bcmath php-gmp"
@@ -85,7 +91,7 @@ elif [[ -f ~/.bash_profile && ! "$(grep "en_US.UTF-8" ~/.bash_profile)" ]]; then
 fi
 
 # For root user only
-if [ "$USER" != "root" ]; then
+if [[ $EUID -ne 0 ]]; then
     echo "$ERROR_CHAR installer must be run as root."
     ERROR=true
 fi
@@ -131,10 +137,12 @@ fi
 # GET 2nd argument: install | upgrade | remove
 ARG_CALL=""
 if [[ -z "2" || (
+    "$2" != "backup" &&
     "$2" != "change" &&
     "$2" != "diff" &&
     "$2" != "firewall" &&
     "$2" != "install" &&
+    "$2" != "import" &&
     "$2" != "pop" &&
     "$2" != "remove" &&
     "$2" != "reset" &&
@@ -212,11 +220,13 @@ serverUpgrade() {
 flagDbUpdate(){
     #nodeFindDomainRoot
     if [ "$DOMAINROOT" != "unknown" ]; then
+        PWD=`pwd`
         cd $DOMAINROOT
         touch tmp/db-update
         chown $WEBOWNER:$WEBGROUP tmp/db-update
         chmod 775 tmp/db-update
         echo "$CHECK_CHAR Database flagged for an update."
+        cd $PWD
     else
         echo "$ERROR_CHAR flagDbUpdate() Could not locate Arionum node software in '$DOMAINROOT'"
         exitAsError
@@ -226,11 +236,13 @@ flagDbUpdate(){
 removeSanityLock(){
     #nodeFindDomainRoot
     if [ "$DOMAINROOT" != "unknown" ]; then
+        PWD=`pwd`
         cd $DOMAINROOT
         if [ -f $DOMAINROOT/tmp/sanity-lock ]; then
             rm $DOMAINROOT/tmp/sanity-lock
             echo "$CHECK_CHAR sanity-lock removed."
         fi
+        cd $PWD
     else
         echo "$ERROR_CHAR removeSanityLock() Could not locate Arionum node software in '$DOMAINROOT'"
         exitAsError
@@ -243,6 +255,7 @@ fixNodePermissions() {
     #nodeFindDomainRoot
     echo "$TASK_CHAR Setting permissions..."
     if [ "$DOMAINROOT" != "unknown" ]; then
+        PWD=`pwd`
         cd $DOMAINROOT
         chown -R $SECUREOWNER $DOMAINROOT/*
         chown -R $SECUREOWNER $DOMAINROOT/.[^.]*
@@ -256,6 +269,7 @@ fixNodePermissions() {
             chmod 775 -R $DOMAINROOT/tmp/db-update
         fi
         echo "$CHECK_CHAR Permissions set."
+        cd $PWD
     else
         echo "$ERROR_CHAR fixNodePermissions() Could not locate Arionum node software in '$DOMAINROOT'"
         exitAsError
@@ -358,6 +372,7 @@ packageInstallNginx(){
 
     upNginx
     if [ "$UP_NGINX" == "no" ]; then
+        PWD=`pwd`
         cd /tmp/ && wget -O nginx_signing.key http://nginx.org/keys/nginx_signing.key
         apt-key add nginx_signing.key
         sh -c "echo 'deb http://nginx.org/packages/mainline/ubuntu/ '$(lsb_release -cs)' nginx' > /etc/apt/sources.list.d/nginx.list"
@@ -365,6 +380,7 @@ packageInstallNginx(){
         apt-get -qq update -y
         apt-get -qq install nginx -y
         service nginx restart
+        cd $PWD
     else
         echo "$INFO_CHAR Nginx detected as running already.";
     fi
@@ -468,9 +484,9 @@ packageInstallGeneral() {
 }
 
 hardenMysql() {
-    mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
-    mysql -e "DELETE FROM mysql.user WHERE User='';"
-    mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
+    sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
+    sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='';"
+    sudo -H mysql  -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
 }
 hardenPHP() {
     # TODO: php.ini, php-fpm conf
@@ -590,7 +606,7 @@ setupMysqlDatabase(){
         DBUSER_PASS=$(generatePassword)
         # Reset root pass
         echo "$INFO_CHAR setting root pass."
-        mysql -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
+        sudo -H mysql  -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
         echo "$INFO_CHAR root pass set."
 
         # Create, write to and save mysql config to .my.cnf file
@@ -610,18 +626,18 @@ setupMysqlDatabase(){
     if [ -d /var/lib/mysql/$DBNAME ] ; then
         echo "$INFO_CHAR $DBNAME database already exists."
     else
-        mysql -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
+        sudo -H mysql  -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8 */;"
         echo "$TASK_CHAR create arionum database"
     fi
-    USER_EXISTS="$(mysql -sse "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '$DBUSER')")"
+    USER_EXISTS="$(sudo -H mysql  -sse "SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '$DBUSER')")"
     if [ "$USER_EXISTS" = 1 ]; then
         echo "$INFO_CHAR $DBUSER mysql user already exists."
     else
         echo "$TASK_CHAR create arionum database user"
-        mysql -e "CREATE USER ${DBUSER}@localhost IDENTIFIED BY '${DBUSER_PASS}';"
-        mysql -e "GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'localhost';"
+        sudo -H mysql  -e "CREATE USER ${DBUSER}@localhost IDENTIFIED BY '${DBUSER_PASS}';"
+        sudo -H mysql  -e "GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'localhost';"
     fi
-    mysql -e "FLUSH PRIVILEGES;"
+    sudo -H mysql  -e "FLUSH PRIVILEGES;"
 
     echo "$CHECK_CHAR Database setup finished."
 }
@@ -642,11 +658,14 @@ setupNginxVhost() {
     if [ ! -d $DOMAINROOT ]; then
         mkdir -p $DOMAINROOT
     fi
+
     # secure domain root
+    PWD=`pwd`
     cd $DOMAINROOT
     chown $SECUREOWNER $WEBROOT
     chgrp $WEBGROUP $WEBROOT
     chmod 0755 $DOMAINROOT
+    cd $PWD
 
     # update nginx user to WEBUSER:WEBGROUP:
     sed -i "s/user  nginx;/user  $WEBOWNER $WEBOWNER;/g" /etc/nginx/nginx.conf
@@ -670,7 +689,7 @@ setupNginxVhost() {
         mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.vhost
     fi
     if [ ! -f $SCRIPT_PATH/aronode.vhost ]; then
-        echo "$ERROR_CHAR setupNginxVhost() $SCRIPT_PATH/aronode.vhost not found. Check github and download it.";
+        echo "$ERROR_CHAR setupNginxVhost() $SCRIPT_PATH/aronode.vhost not found. Check github, download it, try again.";
         exitAsError
     fi
     # enable vhost
@@ -694,12 +713,14 @@ setupNginxVhost() {
     else
         echo "$CHECK_CHAR Nginx restarted and running."
     fi
+
 }
 
 gitInitNode() {
     echo "$TASK_CHAR Installing Arionum node software ..."
 
     if [[ -d "$DOMAINROOT" ]]; then
+        PWD=`pwd`
         cd $DOMAINROOT
         # check git exists so it won't halt process on error
         if [[ ! -d .git ]]; then
@@ -710,6 +731,7 @@ gitInitNode() {
         git fetch --all --prune
         git checkout master
         echo "$CHECK_CHAR Download of Arionum node finished."
+        cd $PWD
     else
         echo "$ERROR_CHAR gitInitNode() $DOMAINROOT path not found.";
         exitAsError
@@ -823,11 +845,13 @@ nodeUpgrade() {
     #nodeFindDomainRoot
     # cd to domain root path
     if [ -d $DOMAINROOT ]; then
+        PWD=`pwd`
         cd $DOMAINROOT
         echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
         echo "$TASK_CHAR Getting node updates from git ..."
         git pull origin master
         echo "$CHECK_CHAR Node upgrade complete."
+        cd $PWD
     else
         echo "$ERROR_CHAR Arionum Node is not installed. Nothing to upgrade. Try install instead."
         exitAsError
@@ -835,8 +859,83 @@ nodeUpgrade() {
 
 }
 
+backupDb() {
 
-# TODO: importing has been causing timeouts; will need more testing
+    # install pigz if not installed
+    if [ $(dpkg-query -W -f='${Status}' pigz 2>/dev/null | grep -c "ok installed") -eq 0 ];
+    then
+        apt-get -qq install pigz -y;
+    fi
+
+    echo "$TASK_CHAR exporting blockchain data ..."
+    # get estimated db size
+    SIZE_BYTES=$(sudo -H mysql  <<< 'SELECT ROUND(SUM(data_length) * 0.60) AS "size_bytes" FROM information_schema.TABLES;' | tail -n1)
+
+    # only backup blockchain table data
+    sudo -H mysqldump $DBNAME $BLOCKCHAIN_TABLES --skip-quote-names | pv --progress --size $SIZE_BYTES > "$BACKUP_FILENAME.sql"
+    echo "$CHECK_CHAR backup exported."
+
+    echo "$TASK_CHAR compressing blockchain backup to $BACKUP_FILENAME.sql.gz ..."
+    pv "$BACKUP_FILENAME.sql" | pigz -f > "$BACKUP_FILENAME.sql.gz"
+    if [ -f "$BACKUP_FILENAME.sql" ]; then
+        rm "$BACKUP_FILENAME.sql"
+    fi
+    echo "$CHECK_CHAR backup compressed."
+}
+
+importDb() {
+
+    # get third argument (optional) for sql filename
+    if [[ "$ARG_THREE" == "" ]]; then
+        BACKUP_FILENAME="$SCRIPT_PATH/aronode_dump.sql.gz"
+    else
+        BACKUP_FILENAME="$ARG_THREE"
+    fi
+
+    # add current path if not full path
+    if [[ ! $BACKUP_FILENAME == /* ]]; then
+        BACKUP_FILENAME="$SCRIPT_PATH/$BACKUP_FILENAME"
+    fi
+
+
+    # remove .gz from filename
+    BACKUP_FILENAME_SQL=`echo $BACKUP_FILENAME | sed -e 's/\(\.gz\)*$//g'`
+
+    if [ -f $BACKUP_FILENAME ]; then
+
+        # clean db
+        nodeEmptyChain
+
+        # FIX BUG: foreign key restraint on import of dump
+        CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
+        CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
+
+        # 2) pv unzip
+        echo "$INFO_CHAR extracting blockchain from dump (PLEASE WAIT) ..."
+        gunzip -c --keep "$BACKUP_FILENAME" | pv > "$BACKUP_FILENAME_SQL"
+
+        # 3) append top/bottom commands
+        echo "$INFO_CHAR adding foreign_key_checks fix ..."
+        sed -i "1s/^/$CMD_BEFORE_IMPORT\n/" "$BACKUP_FILENAME_SQL"
+        echo $CMD_AFTER_IMPORT >> "$BACKUP_FILENAME_SQL"
+        # 4) import sql.gz file into mysql database w/ progress bar
+        echo "$INFO_CHAR importing blockchain dump (PLEASE WAIT) ..."
+        pv "$BACKUP_FILENAME_SQL" | sudo -H mysql  -D $DBNAME
+
+        # 5) cleanup
+        rm "$BACKUP_FILENAME_SQL"
+
+        echo "$CHECK_CHAR backup restored."
+
+    else
+        echo "$ERROR_CHAR $BACKUP_FILENAME not found. Nothing to import."
+        exitAsError
+    fi
+
+
+}
+
+# TODO: importing has been causing timeouts; will need more testing; try "backup/import" instead
 nodeRebuild() {
 
     # check if mainnet ONLY; ERROR if testnet.
@@ -865,7 +964,7 @@ nodeRebuild() {
         echo $CMD_AFTER_IMPORT >> $LOCAL_SNAPTEMP
         # 4) import sql.gz file into mysql database w/ progress bar
         echo "$INFO_CHAR importing daily snapshot of blockchain  (PLEASE WAIT) ..."
-        pv $LOCAL_SNAPTEMP | mysql -D $DBNAME
+        pv $LOCAL_SNAPTEMP | sudo -H mysql  -D $DBNAME
 
         # 5) cleanup
         rm $LOCAL_SNAPTEMP
@@ -875,18 +974,31 @@ nodeRebuild() {
 }
 
 nodeEmptyChain() {
-    echo "$INFO_CHAR Emptying database: ${DBNAME}"
-    # use arionum utility
-    PWD=`pwd`
-    cd $DOMAINROOT
-    php -f util.php clean
-    cd $PWD
+    echo "$INFO_CHAR Emptying blockchain data: ${DBNAME} tables => $BLOCKCHAIN_TABLES (PLEASE WAIT) ..."
+
+    # FIX BUG: foreign key restraint on import of dump
+    CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
+    CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
+
+    # use arionum utility (too slow)
+    ##PWD=`pwd`
+    ##cd $DOMAINROOT
+    ##php -f util.php clean
+    ##cd $PWD
+
+    # doing it manually
+    ARRAY=($BLOCKCHAIN_TABLES)
+    for TABLE in "${ARRAY[@]}"
+    do
+        echo "$INFO_CHAR Truncating table '$TABLE' ..."
+        sudo -H mysql -e "$CMD_BEFORE_IMPORT TRUNCATE TABLE $DBNAME.$TABLE; $CMD_AFTER_IMPORT"
+    done
 }
 nodeDropDb() {
     echo "$INFO_CHAR Dropping database: ${DBNAME}"
     # delete mysql tables
-    mysql -e "DROP DATABASE IF EXISTS ${DBNAME};"
-    mysql -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8mb4 */;"
+    sudo -H mysql  -e "DROP DATABASE IF EXISTS ${DBNAME};"
+    sudo -H mysql  -e "CREATE DATABASE ${DBNAME} /*\!40100 DEFAULT CHARACTER SET utf8mb4 */;"
 }
 
 nodeRemove() {
@@ -1038,10 +1150,12 @@ nodeStatus() {
 nodeDiff() {
     echo "$TASK_CHAR nodeDiff() Checking git for available updates ..."
     #nodeFindDomainRoot
+    PWD=`pwd`
     cd $DOMAINROOT
     git fetch origin
     git diff --color master origin/master
     echo "$CHECK_CHAR Any available updates have been printed to screen above."
+    cd $PWD
 
 }
 
@@ -1088,10 +1202,10 @@ nodeChangeHostname() {
         fi
     fi
     # update config in db with new hosname via mysql
-    mysql -e "UPDATE ${DBNAME}.config SET val='http://${NEWHOSTNAME}' WHERE cfg='hostname';"
+    sudo -H mysql  -e "UPDATE ${DBNAME}.config SET val='http://${NEWHOSTNAME}' WHERE cfg='hostname';"
 }
 queueSanity() {
-    mysql -e "UPDATE ${DBNAME}.config SET val=0 WHERE cfg='sanity_last' LIMIT 1;"
+    sudo -H mysql  -e "UPDATE ${DBNAME}.config SET val=0 WHERE cfg='sanity_last' LIMIT 1;"
 }
 checkRAM() {
     RAMTOTAL=$(free -m | awk '/^Mem:/{print $2}')
@@ -1115,6 +1229,13 @@ fi
 
 # Determine 2nd argument action
 case "$ARG_CALL" in
+    "backup")
+        # stop nginx/php-fpm services; leave mysql on
+        nodeStop
+
+        backupDb
+        nodeStart
+        ;;
     "change")
         nodeChangeHostname
 
@@ -1148,6 +1269,26 @@ case "$ARG_CALL" in
                 disableFirewall
                 ;;
         esac
+        ;;
+    "import")
+        # optional; get filename argument
+        if [[ -z "3" || "$3" == "" ]]; then
+            ARG_THREE=""
+        else
+            ARG_THREE=$3
+        fi
+
+        # stop nginx/php-fpm services; leave mysql on
+        nodeStop
+
+        importDb
+
+        flagDbUpdate
+        removeSanityLock
+        nodeStart
+        queueSanity
+
+        nodeRefresh
         ;;
     "install")
         startLogging
