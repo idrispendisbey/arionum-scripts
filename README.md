@@ -48,6 +48,8 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `    diff      -- view changes/code updates of Aronode's main repository`  
 `    firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>`  
 `    pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete`  
+`    rebuild   -- empty db; download remote sql dump; import chain data`  
+`    require   -- install aronode script requirements`  
 `    reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain`  
 `    restart   -- restart all Arionum related services`  
 `    status    -- check status of services`  
