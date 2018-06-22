@@ -19,6 +19,8 @@ usage() {
     echo "  diff      -- view changes/code updates of Aronode's main repository"
     echo "  firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
     echo "  pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
+    echo "  rebuild   -- empty db; download remote sql dump; import chain data"
+    echo "  require   -- install aronode script requirements"
     echo "  reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain"
     echo "  restart   -- restart all Arionum related services"
     echo "  status    -- check status of services"
@@ -144,7 +146,9 @@ if [[ -z "2" || (
     "$2" != "install" &&
     "$2" != "import" &&
     "$2" != "pop" &&
+    "$2" != "rebuild" &&
     "$2" != "remove" &&
+    "$2" != "require" &&
     "$2" != "reset" &&
     "$2" != "restart" &&
     "$2" != "status" &&
@@ -935,13 +939,13 @@ importDb() {
 
 }
 
-# TODO: importing has been causing timeouts; will need more testing; try "backup/import" instead
+# for custom import try "backup/import" instead
 nodeRebuild() {
 
     # check if mainnet ONLY; ERROR if testnet.
     #nodeCheckConfigMode
     if [[ "$NODE_CONFIG_MODE" != "mainnet" ]]; then
-        echo "$CHECK_CHAR Arionum node is set to testnet. Started db from scratch."
+        echo "$CHECK_CHAR Arionum node is set to testnet. Starting db from scratch."
     else
 
         # 1) get latest snapshot
@@ -950,7 +954,7 @@ nodeRebuild() {
             curl --progress-bar -o $LOCAL_SNAPSHOT $REMOTE_SNAPSHOT
         fi
 
-        # FIX BUG: foreign key restraint on import of dump
+        # FIX BUG: foreign key restraint on import of dump required
         CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
         CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
 
@@ -1319,9 +1323,28 @@ case "$ARG_CALL" in
 
         nodeRefresh
         ;;
+    "rebuild")
+        startLogging
+        # stop nginx/php-fpm services; leave mysql on
+        nodeStop
+
+        nodeEmptyChain
+        nodeRebuild
+
+        flagDbUpdate
+        removeSanityLock
+
+        nodeStart
+        queueSanity
+
+        nodeRefresh
+        ;;
     "remove")
         startLogging
         nodeRemove
+        ;;
+    "require")
+        packageInstallGeneral
         ;;
     "reset")
         startLogging
