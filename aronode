@@ -217,6 +217,7 @@ serverUpgrade() {
     echo "$TASK_CHAR Updating server packages and installing required tools ..."
     export DEBIAN_FRONTEND=noninteractive
     apt-get -qq update && apt-get -qq dist-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" && apt-get -qq autoremove -y
+    packageInstallGeneral
     echo "$CHECK_CHAR Packages updated."
 }
 
