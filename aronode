@@ -1075,7 +1075,7 @@ nodeRemove() {
         rm -Rf $DOMAINROOT
         echo "$CHECK_CHAR $DOMAINROOT directory removed."
     else
-        echo "$ERROR_CHAR $DOMAINROOT not found. Nothing to remove."
+        echo "$INFO_CHAR $DOMAINROOT webroot diretory not found. Nothing to remove or skipped."
     fi
 }
 
