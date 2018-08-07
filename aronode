@@ -854,7 +854,11 @@ nodeUpgrade() {
         cd $DOMAINROOT
         echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
         echo "$TASK_CHAR Getting node updates from git ..."
+
+        mv $DOMAINROOT/include/config.inc.php $DOMAINROOT/include/config.inc.BACKUP.php
         git pull origin master
+        mv $DOMAINROOT/include/config.inc.BACKUP.php $DOMAINROOT/include/config.inc.php
+
         echo "$CHECK_CHAR Node upgrade complete."
         cd $PWD
     else
@@ -1110,12 +1114,17 @@ nodeStatus() {
 
     # check for 200 response or not
     echo "$TASK_CHAR Checking node status ..."
-    STATUS=$(curl -Ssi http://127.0.0.1:80/ | head -n 1 | cut -d$' ' -f2)
+    STATUS=$(curl -SsI http://127.0.0.1:80/ | head -n 1 | cut -d$' ' -f2)
     if [ "$STATUS" == "200" ]; then
         echo "$CHECK_CHAR http://127.0.0.1:80/ => 200 response: OK"
-        echo "$INFO_CHAR Querying API for current block http://127.0.0.1:80/api.php?q=currentBlock ..."
+        echo "$INFO_CHAR Querying API for current block http://127.0.0.1:80/api.php?q=currentBlock"
+        echo "$INFO_CHAR Querying API for node version  http://127.0.0.1:80/api.php?q=version"
         CURRENT_BLOCK=$(curl -Ss "http://127.0.0.1:80/api.php?q=currentBlock" | awk -F'"height":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
         if [ $CURRENT_BLOCK -gt 0 ]; then
+            # print version
+            VERSION=$(curl -Ss "http://127.0.0.1:80/api.php?q=version" | awk -F'"data":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
+            echo "$CHECK_CHAR  Node Version: $VERSION"
+
             echo "$CHECK_CHAR Current Block: $CURRENT_BLOCK"
             # get time behind
             BLOCKDATE=$(curl -Ss "http://127.0.0.1:80/api.php?q=getBlock&height=$CURRENT_BLOCK" | awk -F'"date":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
