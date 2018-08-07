@@ -1132,7 +1132,7 @@ nodeStatus() {
 
     # check for 200 response or not
     echo "$TASK_CHAR Checking node status ..."
-    STATUS=$(curl -SsI http://127.0.0.1:80/ | head -n 1 | cut -d$' ' -f2)
+    STATUS=$(curl --connect-timeout 10 --max-time 15 -SsI http://127.0.0.1:80/ | head -n 1 | cut -d$' ' -f2)
     if [ "$STATUS" == "200" ]; then
         echo "$CHECK_CHAR http://127.0.0.1:80/ => 200 response: OK"
         echo "$INFO_CHAR Querying API for current block http://127.0.0.1:80/api.php?q=currentBlock"
@@ -1172,12 +1172,19 @@ nodeStatus() {
             echo -e "$CHECK_CHAR   Node Behind: $BEHIND_FORMAT $BEHIND_LABEL"
 
         else
+            echo ""
             echo -e "$ERROR_CHAR Could not query api for current block. Something is not right."
             echo -e "$ERROR_CHAR If brand new node, try running status a few times to load initial block."
             echo -e "$ERROR_CHAR If you think its bug, submit issue to https://github.com/KyleFromOhio/arionum-scripts/issues"
         fi
     else
-        echo "$ERROR_CHAR node status: FAIL"
+        echo ""
+        echo -e "$ERROR_CHAR node status: FAIL (timeout or response != 200)"
+        echo -e "$ERROR_CHAR could not query http://127.0.0.1:80/"
+        echo -e "$ERROR_CHAR If brand new node, try running status a few times to load initial block."
+        echo -e "$ERROR_CHAR Try restart function to reload all services."
+        echo -e "$ERROR_CHAR Is node syncing? Wait a few minutes/hours for sync to complete."
+        echo -e "$ERROR_CHAR If you think its bug, submit issue to https://github.com/KyleFromOhio/arionum-scripts/issues"
     fi
 }
 
