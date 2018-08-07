@@ -29,6 +29,10 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 ## Update Aronode script to Latest Version
 `$ cd ~/scripts`  
 `$ git pull origin master`  
+If merge errors because you changed file/permissions then...    
+`$ cd ~/scripts`  
+`$ git fetch --all`  
+`$ git reset --hard origin/master`  
 
 ## Arionum Node Usage
 `$ sudo bash aronode mainnet install`  
