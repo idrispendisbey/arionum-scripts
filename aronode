@@ -473,7 +473,10 @@ packagePurgeMysql() {
     apt-get -qq --purge remove mysql* -y
     rm -rf /var/lib/mysql
     rm -rf /var/log/mysql
-    rm $MYCNF_PATH
+    if [ -f "$MYCNF_PATH" ]; then
+        rm "$MYCNF_PATH"
+    fi
+
     apt-get -qq autoremove -y
     apt-get -qq autoclean -y
     echo "$CHECK_CHAR Mysql purged."
@@ -950,7 +953,9 @@ importDb() {
         pv "$BACKUP_FILENAME_SQL" | sudo -H mysql  -D $DBNAME
 
         # 5) cleanup
-        rm "$BACKUP_FILENAME_SQL"
+        if [ -f "$BACKUP_FILENAME_SQL" ]; then
+            rm "$BACKUP_FILENAME_SQL"
+        fi
 
         echo "$CHECK_CHAR backup restored."
 
@@ -994,7 +999,9 @@ nodeRebuild() {
         pv $LOCAL_SNAPTEMP | sudo -H mysql  -D $DBNAME
 
         # 5) cleanup
-        rm $LOCAL_SNAPTEMP
+        if [ -f "$LOCAL_SNAPTEMP" ]; then
+            rm "$LOCAL_SNAPTEMP"
+        fi
 
     fi
 
