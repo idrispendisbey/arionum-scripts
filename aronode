@@ -315,7 +315,10 @@ nodeStop() {
 # stop mysql
 nodeStopDb() {
     echo "$TASK_CHAR Stopping Mysql ..."
-    service mysql stop
+    upMysql
+    if [ "$UP_MYSQL" == "yes" ]; then
+        service mysql stop
+    fi
 }
 # start nginx, php-fpm, mysql (if not running)
 nodeStart() {
@@ -474,7 +477,7 @@ packageInstallMysql(){
 }
 packagePurgeMysql() {
     echo "$TASK_CHAR packagePurgeMysql() Purging mysql ..."
-    service mysql stop
+    nodeStopDb
     apt-get -qq --purge remove mariadb-server mariadb-client -y
     apt-get -qq --purge remove mysql* -y
     rm -rf /var/lib/mysql
