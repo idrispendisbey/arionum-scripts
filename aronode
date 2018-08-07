@@ -303,8 +303,14 @@ nodeRestart() {
 # stop nginx and php-fpm
 nodeStop() {
     echo "$TASK_CHAR Stopping Nginx, PHP ..."
-    service nginx stop
-    service $PHPFPM_SERVICE stop
+    upNginx
+    if [ "$UP_NGINX" == "yes" ]; then
+        service nginx stop
+    fi
+    upPhp
+    if [ "$UP_PHP" == "yes" ]; then
+        service $PHPFPM_SERVICE stop
+    fi
 }
 # stop mysql
 nodeStopDb() {
@@ -1047,8 +1053,8 @@ nodeRemove() {
     echo "$INFO_CHAR Starting removal of Arionum node ..."
 
     # stop services
-    service nginx stop
-    service $PHPFPM_SERVICE stop
+    #service nginx stop
+    #service $PHPFPM_SERVICE stop
 
     # remove/purge nginx/php-fpm
     apt-get -qq --purge remove nginx
@@ -1385,6 +1391,7 @@ case "$ARG_CALL" in
         ;;
     "remove")
         startLogging
+        nodeStop
         nodeRemove
         ;;
     "require")
