@@ -59,8 +59,10 @@ If merge errors because you changed file/permissions then...
 `    status    -- check status of services`  
 
 ## Troubleshooting
-If status fails or returns timeout, try the following...
-Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.
-Run restart function to restart all services. Wait a few minutes then run status again.
+If status fails or returns timeout, try the following...   
+Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.   
+Run restart function to restart all services. Wait a few minutes then run status again.   
+
+Bash script has "set -e" which means it will HALT on any errors to prevent chaos.  
 
 If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
