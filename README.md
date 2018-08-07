@@ -54,3 +54,9 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `    restart   -- restart all Arionum related services`  
 `    status    -- check status of services`  
 
+## Troubleshooting
+If status fails or returns timeout, try the following...
+Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.
+Run restart function to restart all services. Wait a few minutes then run status again.
+
+If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
