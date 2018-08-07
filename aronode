@@ -43,7 +43,12 @@ WEBROOT="/var/www"
 SECUREOWNER="nobody"
 WEBOWNER="www-data"
 WEBGROUP="www-data"
-WEBCONFIG="include/config.inc.php"
+
+WEBCONFIGFILE="config.inc.php"
+WEBCONFIGFILESAMPLE="config-sample.inc.php"
+WEBCONFIGPATH="include/config.inc.php"
+WEBCONFIGPATHSAMPLE="include/config-sample.inc.php"
+WEBCONFIGPATHBACKUP="include/config-backup.inc.php"
 
 DBNAME="aronode"
 DBUSER="aronode"
@@ -181,17 +186,22 @@ fi
 nodeCheckConfigMode() {
     #nodeFindDomainRoot
     NODE_CONFIG_MODE="unknown"
-    if [[ -d "$DOMAINROOT" && -f "$DOMAINROOT/$WEBCONFIG" ]]; then
+    if [[ -d "$DOMAINROOT" && -f "$DOMAINROOT/$WEBCONFIGPATH" ]]; then
         # Determine if testnet or mainnet
-        CHECK_CONFIG=$(grep -Po "(?<=$_config\['testnet'\]=)[^;]*" "${DOMAINROOT}/$WEBCONFIG")
+        CHECK_CONFIG=$(grep -Po "(?<=$_config\['testnet'\])[^;]*" "${DOMAINROOT}/$WEBCONFIGPATH")
+        # trim = and spaces
+        CHECK_CONFIG=$(echo -e "${CHECK_CONFIG//=}")
+        CHECK_CONFIG=$(echo -e "${CHECK_CONFIG}" | tr -d '[:space:]')
 
         if [[ "$CHECK_CONFIG" == "false" ]]; then
             NODE_CONFIG_MODE="mainnet"
-        else
+        fi
+        if [[ "$CHECK_CONFIG" == "true" ]]; then
             NODE_CONFIG_MODE="testnet"
         fi
     fi
     echo "$INFO_CHAR NODE_CONFIG_MODE: $NODE_CONFIG_MODE"
+
 }
 
 generatePassword() {
@@ -204,7 +214,11 @@ nodeFindDomainRoot() {
 
     DOMAINROOT="unknown"
     if [ -d "$WEBROOT" ]; then
-        DOMAINROOT=$(find "$WEBROOT" -name "config.inc.php" | sed "s~/$WEBCONFIG~~" | tail -n 1)
+        DOMAINROOT=$(find "$WEBROOT" -name "$WEBCONFIGFILE" | sed "s~/$WEBCONFIGPATH~~" | tail -n 1)
+    fi
+    # 2nd try if no custom config yet
+    if [ -f "$DOMAINROOT/$WEBCONFIGPATHSAMPLE" ]; then
+        DOMAINROOT=$(find "$WEBROOT" -name "$WEBCONFIGFILESAMPLE" | sed "s~/$WEBCONFIGPATHSAMPLE~~" | tail -n 1)
     fi
     if [ "$DOMAINROOT" == "" ]; then
         DOMAINROOT="unknown"
@@ -332,6 +346,7 @@ nodeStart() {
 nodeRefresh() {
     echo "$TASK_CHAR Refreshing node ..."
     # documentation states to load node twice
+    curl -sSL -o /dev/null http://127.0.0.1:80/ 2>&1
     curl -sSL -o /dev/null http://127.0.0.1:80/ 2>&1
     curl -sSL -o /dev/null http://127.0.0.1:80/ 2>&1
     echo "$CHECK_CHAR Node refreshed."
@@ -735,6 +750,9 @@ gitInitNode() {
 
         git fetch --all --prune
         git checkout master
+        if [ ! -f "$DOMAINROOT/$WEBCONFIGPATH" ]; then
+            cp -f $DOMAINROOT/$WEBCONFIGPATHSAMPLE $DOMAINROOT/$WEBCONFIGPATH
+        fi
         echo "$CHECK_CHAR Download of Arionum node finished."
         cd $PWD
     else
@@ -746,10 +764,10 @@ gitInitNode() {
 setupNodeConfig() {
     echo "$TASK_CHAR Updating node database config..."
     #nodeFindDomainRoot
-    ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
-    sed -i -r "s/(dbname=)([^\"]*)/\1$DBNAME/" $ARONODE_CONFIG
-    sed -i -r "s/($_config\['db_user'\]=\")([^\"]*)/\1$DBUSER/" $ARONODE_CONFIG
-    sed -i -r "s/($_config\['db_pass'\]=\")([^\"]*)/\1$DBUSER_PASS/" $ARONODE_CONFIG
+    ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIGPATH"
+    sed -i -r "s/(dbname=)([^']*)/\1$DBNAME/" $ARONODE_CONFIG
+    sed -i -r "s/($_config\['db_user'\] = ')([^']*)/\1$DBUSER/" $ARONODE_CONFIG
+    sed -i -r "s/($_config\['db_pass'\] = ')([^']*)/\1$DBUSER_PASS/" $ARONODE_CONFIG
     echo "$CHECK_CHAR Node config Updated."
 }
 
@@ -831,7 +849,7 @@ nodeInstall() {
     echo ""
     echo "$INFO_CHAR MySQL passwords available in: $MYCNF_PATH"
     echo "$INFO_CHAR Node installed to: $DOMAINROOT"
-    echo "$INFO_CHAR Node config in: $DOMAINROOT/$WEBCONFIG"
+    echo "$INFO_CHAR Node config in: $DOMAINROOT/$WEBCONFIGPATH"
     echo "$INFO_CHAR Visit: http://YourIpAddressOrDomain/ OR http://127.0.0.1 locally and you should see current arionum block number."
     echo "$INFO_CHAR API Documentation: http://YourIpAddressOrDomain/doc/"
     echo "$INFO_CHAR API Endpoint: http://YourIpAddressOrDomain/api.php"
@@ -846,8 +864,8 @@ nodeUpgrade() {
     echo "$CHECK_CHAR Server packages updated."
 
     echo "$TASK_CHAR Locating Arionum node installation directory ..."
-    # detect path of node software; look for $WEBCONFIG
-    #nodeFindDomainRoot
+    # detect path of node software; look for $WEBCONFIGPATH
+    # nodeFindDomainRoot
     # cd to domain root path
     if [ -d $DOMAINROOT ]; then
         PWD=`pwd`
@@ -855,9 +873,9 @@ nodeUpgrade() {
         echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
         echo "$TASK_CHAR Getting node updates from git ..."
 
-        mv $DOMAINROOT/include/config.inc.php $DOMAINROOT/include/config.inc.BACKUP.php
+        cp -f $DOMAINROOT/$WEBCONFIGPATH $DOMAINROOT/$WEBCONFIGPATHBACKUP
         git pull origin master
-        mv $DOMAINROOT/include/config.inc.BACKUP.php $DOMAINROOT/include/config.inc.php
+        cp -f $DOMAINROOT/$WEBCONFIGPATHBACKUP $DOMAINROOT/$WEBCONFIGPATH
 
         echo "$CHECK_CHAR Node upgrade complete."
         cd $PWD
@@ -1048,10 +1066,10 @@ nodeRemove() {
 nodeTestnetConfig() {
     #nodeFindDomainRoot
     if [ $DOMAINROOT != false ]; then
-        # set $_config['testnet']=true;
-        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
+        # set $_config['testnet'] = true;
+        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIGPATH"
         if [ -f $ARONODE_CONFIG ]; then
-            sed -i -re "s/('testnet'\]=)([trueTRUEfalsFALS]*);/\1true;/" $ARONODE_CONFIG
+            sed -i -re "s/('testnet'\] = )([trueTRUEfalsFALS]*);/\1true;/" $ARONODE_CONFIG
             echo "$CHECK_CHAR Config set to 'testnet'"
         else
             echo "$ERROR_CHAR $ARONODE_CONFIG not found. testnet not set."
@@ -1076,13 +1094,13 @@ nodeMainnetConfig() {
 
     #nodeFindDomainRoot
     if [ $DOMAINROOT != false ]; then
-        # set $_config['testnet']=false;
-        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIG"
+        # set $_config['testnet'] = false;
+        ARONODE_CONFIG="$DOMAINROOT/$WEBCONFIGPATH"
         if [ -f $ARONODE_CONFIG ]; then
-            sed -i -re "s/('testnet'\]=)([trueTRUEfalsFALS]*);/\1false;/" $ARONODE_CONFIG
+            sed -i -re "s/('testnet'\] = )([trueTRUEfalsFALS]*);/\1false;/" $ARONODE_CONFIG
             echo "$CHECK_CHAR Config set to 'mainnet'"
         else
-            echo "$ERROR_CHAR $ARONODE_CONFIG not found. mainnet not set."
+            echo "$ERROR_CHAR $ARONODE_CONFIG file not found. mainnet not set."
         fi
     else
         echo "$ERROR_CHAR $DOMAINROOT not found. Nothing to remove."
@@ -1155,6 +1173,8 @@ nodeStatus() {
 
         else
             echo -e "$ERROR_CHAR Could not query api for current block. Something is not right."
+            echo -e "$ERROR_CHAR If brand new node, try running status a few times to load initial block."
+            echo -e "$ERROR_CHAR If you think its bug, submit issue to https://github.com/KyleFromOhio/arionum-scripts/issues"
         fi
     else
         echo "$ERROR_CHAR node status: FAIL"
@@ -1395,6 +1415,7 @@ case "$ARG_CALL" in
         nodeStopDb
 
         nodeUpgrade
+        fixNodePermissions
 
         nodeStop
         flagDbUpdate
