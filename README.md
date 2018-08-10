@@ -61,7 +61,7 @@ If merge errors because you changed file/permissions then...
 ## Masternode Setup
 This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: https://github.com/arionum/masternode-miner
 
-My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use tha server to hold your key information and run the masernode-miner.
+My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use that server to hold your key information and run the masternode-miner.
 
 ## Troubleshooting
 If status fails or returns timeout, try the following...   
