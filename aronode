@@ -58,7 +58,7 @@ MYCNF_PATH="/root/.my.cnf"
 
 # import variables
 BACKUP_FILENAME="aronode_dump"
-BLOCKCHAIN_TABLES="blocks accounts transactions mempool"
+BLOCKCHAIN_TABLES="blocks accounts transactions mempool masternode"
 
 # used in rebuild function; to re-download just delete LOCAL_SNAPSHOT
 LOCAL_SNAPSHOT="arionum-daily.sql.gz"
