@@ -58,11 +58,21 @@ If merge errors because you changed file/permissions then...
 `    restart   -- restart all Arionum related services`  
 `    status    -- check status of services`  
 
+## Masternode Setup
+This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: https://github.com/arionum/masternode-miner
+
+My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use tha server to hold your key information and run the masernode-miner.
+
 ## Troubleshooting
 If status fails or returns timeout, try the following...   
-Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.   
-Run restart function to restart all services. Wait a few minutes then run status again.   
+- Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.   
+- Run restart function to restart all services. Wait a few minutes then run status again.   
+
+To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
+If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 
 Bash script has "set -e" which means it will HALT on any errors to prevent chaos.  
 
 If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
+
+
