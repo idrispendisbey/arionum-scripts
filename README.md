@@ -63,12 +63,12 @@ This script does NOT currently do anything with masternode configs. It does inst
 
 My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use that server to hold your key information and run the masternode-miner.
 
-## Block 80000 (how to resync)
+## Block 80000+ (how to resync)
 Make sure you have latest aronode script TODAY (otherwise rebuild/import will error)...  
-Go to directory where your aronode script is located.  
+Go to directory where your aronode script is located and update it.  
 $ git pull origin master;  
 
-Update code and rebuild node chain from daily snapshot...  
+Update arionum node code and rebuild node chain from daily snapshot...  
 $ sudo bash aronode mainnet upgrade;  
 $ sudo rm arionum-daily.sql*;  
 $ sudo bash aronode mainnet rebuild;  
