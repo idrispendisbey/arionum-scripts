@@ -49,22 +49,23 @@ If merge errors because you changed file/permissions then...
 
 ## Additional Options
 `$ sudo bash aronode help`  
- 
-`$ sudo bash aronode <testnet|mainnet> <install|upgrade|remove|reset|restart|status|pop|diff|change|firewall>`  
+
+`$ sudo bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
 `    remove    -- purge nginx, php-fpm, mysql AND arionum content`  
-`    backup    -- will dump 'blocks, accounts, transactions, mempool' tables to a gzipped sql file`  
+`    backup     -- will dump essential tables to a gzipped sql file"`  
 `    import    -- will import a gzipped sql file; 3rd argument (optional): <filename>`  
 `    change    -- change hostname ip/domain that peers see you as`  
 `    diff      -- view changes/code updates of Aronode's main repository`  
 `    firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>`  
 `    pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete`  
-`    rebuild   -- empty db; download remote sql dump; import chain data`  
+`    rebuild    -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>`     
 `    require   -- install aronode script requirements`  
 `    reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain`  
 `    restart   -- restart all Arionum related services`  
 `    status    -- check status of services`  
+`    sync       -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"`  
 
 ## Masternode Setup
 This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: https://github.com/arionum/masternode-miner
@@ -84,14 +85,16 @@ $ sudo bash aronode mainnet status;
 
 
 ## Troubleshooting
-If status fails or returns timeout, try the following...   
+If status fails or returns timeout, try the following seperately...   
 - Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.   
-- Run restart function to restart all services. Wait a few minutes then run status again.   
+- Run restart function to restart all services. Wait a few minutes then run status again.  
+- Run 'sync' to run sanity manually to monitor progress.  
+- Run 'rebuild' to sync to a remote daily snapshot.   
 
-To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
-If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+- To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
+- If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 
-Bash script has "set -e" which means it will HALT on any errors to prevent chaos.  
+Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsable if you hose your server SO use a clean server that you can re-provision with ease.   
 
 If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
 
