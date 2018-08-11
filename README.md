@@ -79,8 +79,9 @@ $ git pull origin master;
 
 Update arionum node code and rebuild node chain from daily snapshot...  
 $ sudo bash aronode mainnet upgrade;  
-$ sudo rm arionum-daily.sql*;  
-$ sudo bash aronode mainnet rebuild;  
+$ sudo bash aronode mainnet rebuild latest;  
+$ sudo bash aronode mainnet status;  
+You can manually sync the rest with...  
 $ sudo bash aronode mainnet status;  
 
 
