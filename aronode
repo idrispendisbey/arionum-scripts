@@ -8,28 +8,30 @@
 # Example: bash aronode mainnet install
 usage() {
     echo "USAGE: "
-    echo "  $ sudo bash $0 <testnet|mainnet> <install|upgrade|reset|restart|status|diff|change|firewall>"
-    echo "  install   -- install Arionum node and services from scratch"
-    echo "  upgrade   -- upgrade existing Arionum node setup"
-    echo "  remove    -- purge nginx, php-fpm, mysql AND arionum content"
+    echo "  $ sudo bash $0 <testnet|mainnet> <install|upgrade|reset|restart|status|...>"
+    echo "  install    -- install Arionum node and services from scratch"
+    echo "  upgrade    -- upgrade existing Arionum node setup"
+    echo "  remove     -- purge nginx, php-fpm, mysql AND arionum content"
     echo "    additional options ..."
-    echo "  backup    -- will dump 'blocks, accounts, transactions, mempool' tables to a gzipped sql file"
-    echo "  import    -- will import a gzipped sql file; 3rd argument (optional): <filename>"
-    echo "  change    -- change hostname ip/domain that peers see you as"
-    echo "  diff      -- view changes/code updates of Aronode's main repository"
-    echo "  firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
-    echo "  pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
-    echo "  rebuild   -- empty db; download remote sql dump; import chain data"
-    echo "  require   -- install aronode script requirements"
-    echo "  reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain"
-    echo "  restart   -- restart all Arionum related services"
-    echo "  status    -- check status of services"
+    echo "  backup     -- will dump essential tables to a gzipped sql file"
+    echo "  import     -- will import a gzipped .sql file; 3rd argument (optional): <filename.sql.gz>"
+    echo "  change     -- change hostname ip/domain that peers see you as"
+    echo "  diff       -- view changes/code updates of Aronode's main repository"
+    echo "  firewall   -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
+    echo "  pop        -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
+    echo "  rebuild    -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>"
+    echo "  require    -- install aronode script requirements"
+    echo "  reset      -- set Aronode environment config to testnet or mainnet; then rebuild blockchain"
+    echo "  restart    -- restart all Arionum related services; php/nginx/mysql"
+    echo "  stop       -- stop public facing Arionum related services; php/nginx"
+    echo "  status     -- check status of services"
+    echo "  sync       -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"
 
 }
 
 
 # DEBUG: prevent chaos; halt on error
-set -e
+#set -e
 
 # VARIABLES
 ERROR=false
@@ -58,6 +60,7 @@ MYCNF_PATH="/root/.my.cnf"
 
 # import variables
 BACKUP_FILENAME="aronode_dump"
+# backup only backs up these tables
 BLOCKCHAIN_TABLES="blocks accounts transactions mempool masternode"
 
 # used in rebuild function; to re-download just delete LOCAL_SNAPSHOT
@@ -156,7 +159,9 @@ if [[ -z "2" || (
     "$2" != "require" &&
     "$2" != "reset" &&
     "$2" != "restart" &&
+    "$2" != "stop" &&
     "$2" != "status" &&
+    "$2" != "sync" &&
     "$2" != "upgrade"
     ) ]]; then
     echo "$ERROR_CHAR Second argument is invalid."
@@ -251,6 +256,7 @@ flagDbUpdate(){
         exitAsError
     fi
 }
+
 # delete tmp/sanity-lock if exists
 removeSanityLock(){
     #nodeFindDomainRoot
@@ -303,6 +309,8 @@ nodeRestart() {
 # stop nginx and php-fpm
 nodeStop() {
     echo "$TASK_CHAR Stopping Nginx, PHP ..."
+    killSanity
+
     upNginx
     if [ "$UP_NGINX" == "yes" ]; then
         service nginx stop
@@ -976,8 +984,24 @@ importDb() {
 
 }
 
+
+removeRebuildDaily() {
+    # make sure in script path
+    cd $SCRIPT_PATH
+
+    # if any dumps found; delete them
+    if ls $LOCAL_SNAPTEMP* 1> /dev/null 2>&1; then
+        # only delete them if variable is not empty; ie. dont "rm *"
+        [[ ! -z "$LOCAL_SNAPTEMP" ]] && rm -v $LOCAL_SNAPTEMP*
+    fi
+
+}
+
 # for custom import try "backup/import" instead
 nodeRebuild() {
+
+    # make sure in script path
+    cd $SCRIPT_PATH
 
     # check if mainnet ONLY; ERROR if testnet.
     #nodeCheckConfigMode
@@ -987,8 +1011,10 @@ nodeRebuild() {
 
         # 1) get latest snapshot
         if [ ! -f $LOCAL_SNAPSHOT ]; then
-            echo "$INFO_CHAR downloading daily snapshot of blockchain ..."
+            echo "$INFO_CHAR downloading latest daily snapshot of blockchain ..."
             curl --progress-bar -o $LOCAL_SNAPSHOT $REMOTE_SNAPSHOT
+        else
+            echo "$INFO_CHAR snapshot $LOCAL_SNAPSHOT exists locally; using it ..."
         fi
 
         # FIX BUG: foreign key restraint on import of dump required
@@ -1017,25 +1043,27 @@ nodeRebuild() {
 }
 
 nodeEmptyChain() {
-    echo "$INFO_CHAR Emptying blockchain data: ${DBNAME} tables => $BLOCKCHAIN_TABLES (PLEASE WAIT) ..."
+    echo "$INFO_CHAR Emptying blockchain data: ${DBNAME} tables (PLEASE WAIT) ..."
 
     # FIX BUG: foreign key restraint on import of dump
     CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
     CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
 
-    # use arionum utility (too slow)
-    ##PWD=`pwd`
-    ##cd $DOMAINROOT
-    ##php -f util.php clean
-    ##cd $PWD
+    # use arionum utility
+    PWD=`pwd`
+    cd $DOMAINROOT
+    CMD=`php -f util.php clean`
+    CMD="${CMD//[$'\t\r\n']}"
+    echo "$INFO_CHAR $CMD"
+    cd $PWD
 
     # doing it manually
-    ARRAY=($BLOCKCHAIN_TABLES)
-    for TABLE in "${ARRAY[@]}"
-    do
-        echo "$INFO_CHAR Truncating table '$TABLE' ..."
-        sudo -H mysql -e "$CMD_BEFORE_IMPORT TRUNCATE TABLE $DBNAME.$TABLE; $CMD_AFTER_IMPORT"
-    done
+    #ARRAY=($BLOCKCHAIN_TABLES)
+    #for TABLE in "${ARRAY[@]}"
+    #do
+        #echo "$INFO_CHAR Truncating table '$TABLE' ..."
+        #sudo -H mysql -e "$CMD_BEFORE_IMPORT TRUNCATE TABLE $DBNAME.$TABLE; $CMD_AFTER_IMPORT"
+    #done
 }
 nodeDropDb() {
     echo "$INFO_CHAR Dropping database: ${DBNAME}"
@@ -1154,7 +1182,10 @@ nodeStatus() {
         echo "$INFO_CHAR Querying API for current block http://127.0.0.1:80/api.php?q=currentBlock"
         echo "$INFO_CHAR Querying API for node version  http://127.0.0.1:80/api.php?q=version"
         CURRENT_BLOCK=$(curl -Ss "http://127.0.0.1:80/api.php?q=currentBlock" | awk -F'"height":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
-        if [ $CURRENT_BLOCK -gt 0 ]; then
+
+        # check if number and > 0 block
+        re='^[0-9]+$'
+        if [[ $CURRENT_BLOCK =~ $re && $CURRENT_BLOCK -gt 0 ]]; then
             # print version
             VERSION=$(curl -Ss "http://127.0.0.1:80/api.php?q=version" | awk -F'"data":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
             echo "$CHECK_CHAR  Node Version: $VERSION"
@@ -1190,16 +1221,24 @@ nodeStatus() {
         else
             echo ""
             echo -e "$ERROR_CHAR Could not query api for current block. Something is not right."
-            echo -e "$ERROR_CHAR If brand new node, try running status a few times to load initial block."
+
+            echo -e "$ERROR_CHAR Try running 'status' a few times to load initial block."
+            echo -e "$ERROR_CHAR Try running 'sync' to run sanity manully to monitor progress."
+            echo -e "$ERROR_CHAR Try running 'restart' a few times."
+            echo -e "$ERROR_CHAR Try running 'rebuild' to sync to a remote daily snapshot."
+
             echo -e "$ERROR_CHAR If you think its bug, submit issue to https://github.com/KyleFromOhio/arionum-scripts/issues"
         fi
     else
         echo ""
         echo -e "$ERROR_CHAR node status: FAIL (timeout or response != 200)"
         echo -e "$ERROR_CHAR could not query http://127.0.0.1:80/"
-        echo -e "$ERROR_CHAR If brand new node, try running status a few times to load initial block."
-        echo -e "$ERROR_CHAR Try restart function to reload all services."
-        echo -e "$ERROR_CHAR Is node syncing? Wait a few minutes/hours for sync to complete."
+
+            echo -e "$ERROR_CHAR Try running 'status' a few times to load initial block."
+            echo -e "$ERROR_CHAR Try running 'sync' to run sanity manully to monitor progress."
+            echo -e "$ERROR_CHAR Try running 'restart' a few times."
+            echo -e "$ERROR_CHAR Try running 'rebuild' to sync to a remote daily snapshot."
+
         echo -e "$ERROR_CHAR If you think its bug, submit issue to https://github.com/KyleFromOhio/arionum-scripts/issues"
     fi
 }
@@ -1261,8 +1300,22 @@ nodeChangeHostname() {
     # update config in db with new hosname via mysql
     sudo -H mysql  -e "UPDATE ${DBNAME}.config SET val='http://${NEWHOSTNAME}' WHERE cfg='hostname';"
 }
+killSanity() {
+    CMD=`pkill -f sanity > /dev/null`
+}
 queueSanity() {
     sudo -H mysql  -e "UPDATE ${DBNAME}.config SET val=0 WHERE cfg='sanity_last' LIMIT 1;"
+}
+runSanity() {
+    echo "$TASK_CHAR Running sanity.php ..."
+    # use arionum utility
+    PWD=`pwd`
+    cd $DOMAINROOT
+    php -f sanity.php
+    cd $PWD
+    echo "$INFO_CHAR $CMD"
+    echo "$CHECK_CHAR sanity attempt complete"
+
 }
 checkRAM() {
     RAMTOTAL=$(free -m | awk '/^Mem:/{print $2}')
@@ -1377,11 +1430,24 @@ case "$ARG_CALL" in
         nodeRefresh
         ;;
     "rebuild")
+        # optional; get 3rd argument
+        if [[ -z "3" || "$3" == "" ]]; then
+            ARG_THREE=""
+        else
+            ARG_THREE=$3
+            echo "$INFO_CHAR ARG_THREE: $ARG_THREE"
+        fi
+
         startLogging
         # stop nginx/php-fpm services; leave mysql on
         nodeStop
 
         nodeEmptyChain
+
+        # get third argument (optional) to delete daily dump download
+        if [[ "$ARG_THREE" == "latest" ]]; then
+            removeRebuildDaily
+        fi
         nodeRebuild
 
         flagDbUpdate
@@ -1424,6 +1490,7 @@ case "$ARG_CALL" in
         ;;
     "restart")
         nodeStop
+        killSanity
         removeSanityLock
         nodeStopDb
         nodeStart
@@ -1432,6 +1499,16 @@ case "$ARG_CALL" in
         ;;
     "status")
         nodeStatus
+        ;;
+    "stop")
+        killSanity
+        nodeStop
+        ;;
+    "sync")
+        killSanity
+        queueSanity
+        removeSanityLock
+        runSanity
         ;;
     "upgrade")
         startLogging
