@@ -82,7 +82,7 @@ $ sudo bash aronode mainnet upgrade;
 $ sudo bash aronode mainnet rebuild latest;  
 $ sudo bash aronode mainnet status;  
 You can manually sync the rest with...  
-$ sudo bash aronode mainnet status;  
+$ sudo bash aronode mainnet sync;  
 
 
 ## Troubleshooting
