@@ -28,11 +28,13 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 
 ## Fast Sync
 A new install will slowly start syncing from block 0. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.      
-`$ sudo bash aronode mainnet rebuild`  
+`$ sudo bash aronode mainnet rebuild`   
 
-If you run this command in the future and want the latest snapshot make sure you delete the sql file it downloaded previously. The script will use the file if it exists already instead of downloading a new one.  
+If you run this command in the future and want the latest snapshot just add the word 'latest to end of it. The script will use the file if it exists already instead of downloading a new one.  
 
-You can also use backup (to export your own dump) and import (with a filename) if you want to import a different dump that you have.
+`$ sudo bash aronode mainnet rebuild latest`     
+
+You can also use 'backup' (to export your own dump) and 'import' (with a filename) if you want to import a different dump that you have.
 
 ## Update Aronode script to Latest Version
 `$ cd ~/scripts`  
@@ -73,7 +75,9 @@ This script does NOT currently do anything with masternode configs. It does inst
 My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use that server to hold your key information and run the masternode-miner.
 
 ## Block 80000+ (how to resync)
-Make sure you have latest aronode script TODAY (otherwise rebuild/import will error)...  
+Follow this section ONLY if you had a node BEFORE block 80,000 or if you just want to do a full re-sync. 
+
+Make sure you have latest aronode script TODAY ...  
 Go to directory where your aronode script is located and update it.  
 $ git pull origin master;  
 
