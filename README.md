@@ -26,8 +26,10 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `$ chmod +x aronode`  
 `$ sudo bash aronode mainnet install` 
 
+IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
+
 ## Fast Sync
-A new install will slowly start syncing from block 0. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.      
+A new install will slowly start syncing from block 1. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.      
 `$ sudo bash aronode mainnet rebuild`   
 
 If you run this command in the future and want the latest snapshot just add the word 'latest to end of it. The script will use the file if it exists already instead of downloading a new one.  
