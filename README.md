@@ -72,9 +72,7 @@ If merge errors because you changed file/permissions then...
 `    sync       -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"`  
 
 ## Masternode Setup
-This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: https://github.com/arionum/masternode-miner
-
-My advice is to setup a second server with SSH password authentication disabled (use SSH keys only; also change your SSH port) and use that server to hold your key information and run the masternode-miner.
+This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: I have a tutorial on this process here: http://aro.wiki/how-to-setup-an-arionum-masternode/
 
 ## Block 80000+ (how to resync)
 Follow this section ONLY if you had a node BEFORE block 80,000 or if you just want to do a full re-sync. 
@@ -101,7 +99,7 @@ If status fails or returns timeout, try the following seperately...
 - To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
 - If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 
-Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsable if you hose your server SO use a clean server that you can re-provision with ease.   
+Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.   
 
 If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
 
