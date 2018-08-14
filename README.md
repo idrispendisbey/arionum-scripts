@@ -99,8 +99,19 @@ If status fails or returns timeout, try the following seperately...
 - To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
 - If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 
-Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.   
+## Bugs
+Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.    
 
-If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues
-
-
+If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues  
+  
+## Donate to the Project:  
+ARO: aykYPdWN9mkFCEFq9UHwAfZvmKKBsLjCf3GBLYdgebY5ptz8KxMjzTQAJwVkLYEQQ6QjuiyvmhdtUHzByd1Wpf2  
+  
+Funds will support the following:  
+  
+Technical (but for dummies) guides and articles on all things ARO and Arionum at http://aro.wiki 
+Marketing of said articles and guides.  
+Continued work on “aronode” on github.  
+Additional scripts and code for monitoring nodes.
+Additional scripts for managing nodes and developing apps on the platform.
+Contributions to the core code at https://github.com/arionum/
