@@ -109,9 +109,9 @@ ARO: aykYPdWN9mkFCEFq9UHwAfZvmKKBsLjCf3GBLYdgebY5ptz8KxMjzTQAJwVkLYEQQ6Qjuiyvmhd
   
 Funds will support the following:  
   
-Technical (but for dummies) guides and articles on all things ARO and Arionum at http://aro.wiki 
-Marketing of said articles and guides.  
-Continued work on “aronode” on github.  
-Additional scripts and code for monitoring nodes.
-Additional scripts for managing nodes and developing apps on the platform.
-Contributions to the core code at https://github.com/arionum/
+Technical (but for dummies) guides and articles on all things ARO and Arionum at http://aro.wiki   
+Marketing of said articles and guides.   
+Continued work on “aronode” on github.   
+Additional scripts and code for monitoring nodes.  
+Additional scripts for managing nodes and developing apps on the platform.  
+Contributions to the core code at https://github.com/arionum/  
