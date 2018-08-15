@@ -48,7 +48,8 @@ If merge errors because you changed file/permissions then...
 
 ## Arionum Node Usage
 `$ sudo bash aronode mainnet install`  
-`$ sudo bash aronode mainnet upgrade`  
+`$ sudo bash aronode mainnet upgrade` 
+`$ sudo bash aronode mainnet update`  
 `$ sudo bash aronode mainnet status`
 
 ## Additional Options
@@ -95,13 +96,14 @@ $ sudo bash aronode mainnet sync;
 
 ## Troubleshooting
 If status fails or returns timeout, try the following seperately...   
-- Run status a few times for initial blocks to kick in. Wait a few minutes then run status again.   
-- Run restart function to restart all services. Wait a few minutes then run status again.  
-- Run 'sync' to run sanity manually to monitor progress.  
-- Run 'rebuild' to sync to a remote daily snapshot.   
+ - Run 'status' a few times for initial blocks to kick in. Wait a few minutes then run status again.   
+ - Run 'restart' function to restart all services. Wait a few minutes then run status again.  
+ - Run 'sync' to run sanity manually and monitor progress.  
+ - Run 'rebuild' to sync to a remote daily snapshot. 'rebuild latest' if its been awhile.  
+ - Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers on next run.
 
-- To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
-- If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+ - To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
+ - If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 
 ## Bugs
 Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.    
