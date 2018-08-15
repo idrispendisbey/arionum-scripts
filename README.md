@@ -48,9 +48,9 @@ If merge errors because you changed file/permissions then...
 
 ## Arionum Node Usage
 `$ sudo bash aronode mainnet install`  
-`$ sudo bash aronode mainnet upgrade` 
-`$ sudo bash aronode mainnet update`  
-`$ sudo bash aronode mainnet status`
+`$ sudo bash aronode mainnet upgrade`    
+`$ sudo bash aronode mainnet update`   
+`$ sudo bash aronode mainnet status`  
 
 ## Additional Options
 `$ sudo bash aronode help`  
