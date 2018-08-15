@@ -112,6 +112,7 @@ If you think you found a bug feel free to submit it here https://github.com/Kyle
   
 ## Donate to the Project:  
 ARO: aykYPdWN9mkFCEFq9UHwAfZvmKKBsLjCf3GBLYdgebY5ptz8KxMjzTQAJwVkLYEQQ6QjuiyvmhdtUHzByd1Wpf2  
+ALIAS: KYLEFROMOHIO  
   
 Funds will support the following:  
   
