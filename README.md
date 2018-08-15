@@ -57,19 +57,23 @@ If merge errors because you changed file/permissions then...
 `$ sudo bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
+`    update    -- upgrade Arionum node only; git pull only`  
 `    remove    -- purge nginx, php-fpm, mysql AND arionum content`  
-`    backup     -- will dump essential tables to a gzipped sql file"`  
+`    backup    -- will dump essential tables to a gzipped sql file"`  
 `    import    -- will import a gzipped sql file; 3rd argument (optional): <filename>`  
 `    change    -- change hostname ip/domain that peers see you as`  
 `    diff      -- view changes/code updates of Aronode's main repository`  
 `    firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>`  
+`    mysql     -- Arguments: <get|set|restart> <setting_name> <value>`  
+`    peers     -- Arguments: <reset>`  
 `    pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete`  
-`    rebuild    -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>`     
+`    rebuild   -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>`     
 `    require   -- install aronode script requirements`  
 `    reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain`  
 `    restart   -- restart all Arionum related services`  
+`    stop      -- stop public facing Arionum related services; php/nginx`  
 `    status    -- check status of services`  
-`    sync       -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"`  
+`    sync      -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"`  
 
 ## Masternode Setup
 This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: I have a tutorial on this process here: http://aro.wiki/how-to-setup-an-arionum-masternode/
