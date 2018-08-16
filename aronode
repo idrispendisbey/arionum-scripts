@@ -133,7 +133,7 @@ fi
 VERSION_ARONODE="0.1.0"
 aronodeCheckVersion() {
     if [ -f $SCRIPT_PATH/VERSION ]; then
-        VERSION_ARONODE=$(echo "$SCRIPT_PATH/VERSION")
+        VERSION_ARONODE=`cat $SCRIPT_PATH/VERSION`
     fi
     echo -e "$INFO_CHAR Aronode v$VERSION_ARONODE"
 }
