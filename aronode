@@ -129,6 +129,16 @@ if [[
     ERROR=true
 fi
 
+# Get version of aronode script
+VERSION_ARONODE="0.1.0"
+aronodeCheckVersion() {
+    if [ -f $SCRIPT_PATH/VERSION ]; then
+        VERSION_ARONODE=$(echo $SCRIPT_PATH/VERSION)
+    fi
+    echo -e "$INFO_CHAR Aronode v$VERSION_ARONODE"
+}
+aronodeCheckVersion
+
 # GET 1st argument: testnet | mainnet
 ARG_CONFIG_MODE=$1
 if [ -z "$ARG_CONFIG_MODE" ]; then
@@ -140,13 +150,16 @@ case "$ARG_CONFIG_MODE" in
         usage
         exit 0
     ;;
+    version)
+        echo -e "$INFO_CHAR Aronode v$VERSION_ARONODE"
+        exit 0
+    ;;
 esac
 # if not help then only other option is testnet|mainnet
 if [[ -z "$ARG_CONFIG_MODE" || ( "$ARG_CONFIG_MODE" != "testnet" && "$ARG_CONFIG_MODE" != "mainnet" ) ]]; then
     echo "$ERROR_CHAR First argument must be either testnet or mainnet."
     ERROR=true
 fi
-
 
 # GET 2nd argument: install | upgrade | remove
 ARG_CALL=""
@@ -169,7 +182,8 @@ if [[ -z "2" || (
     "$2" != "status" &&
     "$2" != "sync" &&
     "$2" != "upgrade" &&
-    "$2" != "update"
+    "$2" != "update" &&
+    "$2" != "version"
     ) ]]; then
     echo "$ERROR_CHAR Second argument is invalid."
     ERROR=true
@@ -194,6 +208,8 @@ fi
 
 # FUNCTIONS
 
+
+
 # check if testnet or mainnet
 nodeCheckConfigMode() {
     #nodeFindDomainRoot
@@ -215,6 +231,8 @@ nodeCheckConfigMode() {
     echo "$INFO_CHAR NODE_CONFIG_MODE: $NODE_CONFIG_MODE"
 
 }
+
+
 
 generatePassword() {
     PASS_LENGTH=16
@@ -1287,8 +1305,8 @@ nodeStatus() {
         re='^[0-9]+$'
         if [[ $CURRENT_BLOCK =~ $re && $CURRENT_BLOCK -gt 0 ]]; then
             # print version
-            VERSION=$(curl -Ss "http://127.0.0.1:80/api.php?q=version" | awk -F'"data":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
-            echo "$CHECK_CHAR  Node Version: $VERSION"
+            VERSION_NODE=$(curl -Ss "http://127.0.0.1:80/api.php?q=version" | awk -F'"data":' '{print $2}' | cut -d$',' -f1 | tr -d '[:space:]')
+            echo "$CHECK_CHAR  Node Version: $VERSION_NODE"
 
             echo "$CHECK_CHAR Current Block: $CURRENT_BLOCK"
             # get time behind
@@ -1677,6 +1695,10 @@ case "$ARG_CALL" in
         ;;
     "usage|help|h|-h|--help")
         usage
+        ;;
+    "version")
+        aronodeCheckVersion
+        exit 0
         ;;
 esac
 
