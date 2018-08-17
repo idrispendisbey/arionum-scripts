@@ -33,4 +33,12 @@ server {
     location ~ /\.ht {
         deny all;
     }
+    location /nginx {
+        # Turn on stats
+        stub_status on;
+        access_log   off;
+        # only allow access from ... #
+        allow 127.0.0.1;
+        deny all;
+    }
 }
