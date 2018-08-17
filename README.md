@@ -17,24 +17,25 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 5. Minimum Hardware Recomendation: 2GB of RAM
 
 ## Arionum Node Installation Example
+`$ sudo su -`  
 `$ cd ~`  
-`$ sudo apt-get update`  
-`$ sudo apt-get install git -y`  
+`$ apt-get update`  
+`$ apt-get install git -y`  
 `$ mkdir scripts`  
 `$ cd scripts`  
 `$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .`  
 `$ chmod +x aronode`  
-`$ sudo bash aronode mainnet install` 
+`$ bash aronode mainnet install` 
 
 IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
 
 ## Fast Sync
 A new install will slowly start syncing from block 1. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.      
-`$ sudo bash aronode mainnet rebuild`   
+`$ bash aronode mainnet rebuild`   
 
 If you run this command in the future and want the latest snapshot just add the word 'latest to end of it. The script will use the file if it exists already instead of downloading a new one.  
 
-`$ sudo bash aronode mainnet rebuild latest`     
+`$ bash aronode mainnet rebuild latest`     
 
 You can also use 'backup' (to export your own dump) and 'import' (with a filename) if you want to import a different dump that you have.
 
@@ -47,15 +48,15 @@ If merge errors because you changed file/permissions then...
 `$ git reset --hard origin/master`  
 
 ## Arionum Node Usage
-`$ sudo bash aronode mainnet install`  
-`$ sudo bash aronode mainnet upgrade`    
-`$ sudo bash aronode mainnet update`   
-`$ sudo bash aronode mainnet status`  
+`$ bash aronode mainnet install`  
+`$ bash aronode mainnet upgrade`    
+`$ bash aronode mainnet update`   
+`$ bash aronode mainnet status`  
 
 ## Additional Options
-`$ sudo bash aronode help`  
+`$ bash aronode help`  
 
-`$ sudo bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
+`$ bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
 `    update    -- upgrade Arionum node only; git pull only`  
@@ -87,11 +88,11 @@ Go to directory where your aronode script is located and update it.
 $ git pull origin master;  
 
 Update arionum node code and rebuild node chain from daily snapshot...  
-$ sudo bash aronode mainnet upgrade;  
-$ sudo bash aronode mainnet rebuild latest;  
-$ sudo bash aronode mainnet status;  
+$ bash aronode mainnet upgrade;  
+$ bash aronode mainnet rebuild latest;  
+$ bash aronode mainnet status;  
 You can manually sync the rest with...  
-$ sudo bash aronode mainnet sync;  
+$ bash aronode mainnet sync;  
 
 
 ## Troubleshooting
