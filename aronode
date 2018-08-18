@@ -106,7 +106,7 @@ fi
 
 # For root user only
 if [[ $EUID -ne 0 ]]; then
-    echo "$ERROR_CHAR installer must be run as root."
+    echo "$ERROR_CHAR aronode must be run as root user. Type first: sudo su -"
     ERROR=true
 fi
 
@@ -117,15 +117,19 @@ OS_NAME=`lsb_release -c -s` # xenial
 
 
 # Only tested on these OS
+if [ "$UNAME" != "Linux-x86_64" ]; then
+    echo "$ERROR_CHAR Must use a 64 bit Linux-x86_64 system. Wrong operating system."
+    ERROR=true
+fi
 if [ "$OS_DISTRO" != "Ubuntu" ]; then
-    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic."
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic. Wrong operating system."
     ERROR=true
 fi
 if [[
     "$OS_NAME" != "xenial" &&
     "$OS_NAME" != "bionic"
 ]]; then
-    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic."
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic. Wrong operating system."
     ERROR=true
 fi
 
@@ -135,7 +139,9 @@ aronodeCheckVersion() {
     if [ -f $SCRIPT_PATH/VERSION ]; then
         VERSION_ARONODE=`cat $SCRIPT_PATH/VERSION`
     fi
-    echo -e "$INFO_CHAR Aronode v$VERSION_ARONODE"
+    DATER=`date`
+    echo -e "$INFO_CHAR $DATER"
+    echo -e "$INFO_CHAR Aronode Script v$VERSION_ARONODE"
 }
 aronodeCheckVersion
 
@@ -527,6 +533,9 @@ mysqlGetConfig(){
         echo "$CHECK_CHAR Variable Found: $MYSQL_VARIABLE = $MYSQL_VALUE in $MYSQL_CONFIG_PATH";
     fi
 }
+mysqlGetRootCnfPass(){
+    MYCNF_ROOTPASS=$(awk -F "=" "/password=/ {print \$2}" $MYCNF_PATH | tr -d ' ')
+}
 mysqlSetConfig(){
     if [ -z "$MYSQL_VARIABLE" ]; then
         echo "$ERROR_CHAR invalid command. mysql variable not defined";
@@ -546,6 +555,7 @@ packageInstallMysql(){
     echo "$TASK_CHAR packageInstallMysql() Installing Mysql (MariaDB) ..."
 
     apt-get -qq install software-properties-common -y
+    apt-get -qq install apt-transport-https -y
 
     upMysql
     if [ "$UP_MYSQL" == "no" ]; then
@@ -607,6 +617,7 @@ packageInstallNtp(){
 
 packageInstallGeneral() {
     echo "$TASK_CHAR packageInstallGeneral() Installing required packages ..."
+    apt-get -qq install apt-transport-https -y
     apt-get -qq install $PACKAGES_GENERAL -y
     echo "$CHECK_CHAR Server packages installed."
 }
@@ -615,7 +626,17 @@ hardenMysql() {
     sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
     sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='';"
     sudo -H mysql  -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
+    setMysqlRootPass
 }
+setMysqlRootPass() {
+    mysqlGetRootCnfPass
+    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
+    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
+    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
+    echo "$CHECK_CHAR root pass set and stored in $MYCNF_PATH"
+}
+
+
 hardenPHP() {
     # TODO: php.ini, php-fpm conf
     return 0
@@ -734,7 +755,8 @@ setupMysqlDatabase(){
         DBUSER_PASS=$(generatePassword)
         # Reset root pass
         echo "$INFO_CHAR setting root pass."
-        sudo -H mysql  -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
+        #sudo -H mysql  -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
+        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${DBROOT_PASS}'";
         echo "$INFO_CHAR root pass set."
 
         # Create, write to and save mysql config to .my.cnf file
@@ -933,7 +955,7 @@ nodeInstall() {
     # TODO: move these to own function/call?
     # run basic mysql security commands
     ####echo "$TASK_CHAR Hardening system ..."
-    ####hardenMysql
+    hardenMysql
     ####hardenPHP
     ####hardenNginx
     ####hardenSSH
@@ -1675,6 +1697,7 @@ case "$ARG_CALL" in
     "upgrade")
         startLogging
         nodeStop
+        hardenMysql
         nodeStopDb
 
         nodeUpgrade
@@ -1707,4 +1730,6 @@ echo -e "$CHECK_CHAR SCRIPT COMPLETE. For more guides, visit www.aro.wiki"
 echo -e ""
 
 exit 0
+
+
 
