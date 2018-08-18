@@ -534,7 +534,10 @@ mysqlGetConfig(){
     fi
 }
 mysqlGetRootCnfPass(){
-    MYCNF_ROOTPASS=$(awk -F "=" "/password=/ {print \$2}" $MYCNF_PATH | tr -d ' ')
+    MYCNF_ROOTPASS=""
+    if [ -f "$MYCNF_PATH" ]; then
+        MYCNF_ROOTPASS=$(awk -F "=" "/password=/ {print \$2}" $MYCNF_PATH | tr -d ' ')
+    fi
 }
 mysqlSetConfig(){
     if [ -z "$MYSQL_VARIABLE" ]; then
@@ -567,6 +570,7 @@ packageInstallMysql(){
         apt-get -qq install mariadb-server mariadb-client -y
 
         # set/fix mysql config
+        mysqlFixConfig
         mysqlOptimizeConfig
     else
         echo "$INFO_CHAR mysql detected as running already.";
@@ -622,20 +626,23 @@ packageInstallGeneral() {
     echo "$CHECK_CHAR Server packages installed."
 }
 
-hardenMysql() {
-    sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
-    sudo -H mysql  -e "DELETE FROM mysql.user WHERE User='';"
-    sudo -H mysql  -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
-    setMysqlRootPass
-}
+
 setMysqlRootPass() {
     mysqlGetRootCnfPass
-    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
-    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
-    sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
-    echo "$CHECK_CHAR root pass set and stored in $MYCNF_PATH"
+    if [ -f "$MYCNF_PATH" ]; then
+        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
+        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${MYCNF_ROOTPASS}'";
+        sudo -H mysql -e "FLUSH PRIVILEGES;"
+        echo "$CHECK_CHAR root pass set and stored in $MYCNF_PATH"
+    fi
 }
-
+hardenMysql() {
+    sudo -H mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1');"
+    sudo -H mysql -e "DELETE FROM mysql.user WHERE User='';"
+    sudo -H mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';"
+    sudo -H mysql -e "FLUSH PRIVILEGES;"
+    setMysqlRootPass
+}
 
 hardenPHP() {
     # TODO: php.ini, php-fpm conf
@@ -753,10 +760,11 @@ setupMysqlDatabase(){
         # Generate new user password(s)
         DBROOT_PASS=$(generatePassword)
         DBUSER_PASS=$(generatePassword)
+
         # Reset root pass
         echo "$INFO_CHAR setting root pass."
-        #sudo -H mysql  -e "SET PASSWORD FOR root@'localhost' = PASSWORD('${DBROOT_PASS}');"
-        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${DBROOT_PASS}'";
+        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' IDENTIFIED BY '${DBROOT_PASS}'";
+        sudo -H mysql -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'127.0.0.1' IDENTIFIED BY '${DBROOT_PASS}'";
         echo "$INFO_CHAR root pass set."
 
         # Create, write to and save mysql config to .my.cnf file
@@ -787,6 +795,7 @@ setupMysqlDatabase(){
         sudo -H mysql  -e "CREATE USER ${DBUSER}@localhost IDENTIFIED BY '${DBUSER_PASS}';"
         sudo -H mysql  -e "GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'localhost';"
     fi
+    # flush permissions
     sudo -H mysql  -e "FLUSH PRIVILEGES;"
 
     echo "$CHECK_CHAR Database setup finished."
@@ -1730,6 +1739,8 @@ echo -e "$CHECK_CHAR SCRIPT COMPLETE. For more guides, visit www.aro.wiki"
 echo -e ""
 
 exit 0
+
+
 
 
 
