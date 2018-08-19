@@ -40,6 +40,11 @@ If you run this command in the future and want the latest snapshot just add the 
 You can also use 'backup' (to export your own dump) and 'import' (with a filename) if you want to import a different dump that you have.
 
 ## Update Aronode script to Latest Version
+
+Automatically ...  
+`$ aronode mainnet update`   
+
+Manually ...   
 `$ cd ~/scripts`  
 `$ git pull origin master`  
 If merge errors because you changed file/permissions then...    
@@ -49,12 +54,12 @@ If merge errors because you changed file/permissions then...
 
 ## Arionum Node Usage
 `$ bash aronode mainnet install`  
-`$ bash aronode mainnet upgrade`    
-`$ bash aronode mainnet update`   
-`$ bash aronode mainnet status`  
+`$ aronode mainnet upgrade`    
+`$ aronode mainnet update`   
+`$ aronode mainnet status`  
 
 ## Additional Options
-`$ bash aronode help`  
+`$ aronode help`  
 
 `$ bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
@@ -80,19 +85,19 @@ If merge errors because you changed file/permissions then...
 ## Masternode Setup
 This script does NOT currently do anything with masternode configs. It does install and setup a node which you need to run a masternode. Once you have a node setup using this script, you will need to follow the steps to configure it to be a masternode: I have a tutorial on this process here: http://aro.wiki/how-to-setup-an-arionum-masternode/
 
-## Block 80000+ (how to resync)
+## Block 80000+ (how to do FULL resync from block 0)
 Follow this section ONLY if you had a node BEFORE block 80,000 or if you just want to do a full re-sync. 
 
 Make sure you have latest aronode script TODAY ...  
 Go to directory where your aronode script is located and update it.  
-$ git pull origin master;  
+$ aronode mainnet update;  
 
 Update arionum node code and rebuild node chain from daily snapshot...  
-$ bash aronode mainnet upgrade;  
-$ bash aronode mainnet rebuild latest;  
-$ bash aronode mainnet status;  
+$ aronode mainnet upgrade;  
+$ aronode mainnet rebuild latest;  
+$ aronode mainnet status;  
 You can manually sync the rest with...  
-$ bash aronode mainnet sync;  
+$ aronode mainnet sync;  
 
 
 ## Troubleshooting
