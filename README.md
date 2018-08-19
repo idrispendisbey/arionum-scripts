@@ -59,7 +59,7 @@ If merge errors because you changed file/permissions then...
 `$ bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
-`    update    -- upgrade Arionum node only; git pull only`  
+`    update    -- upgrade Arionum node & aronode code; ie. git pull`  
 `    remove    -- purge nginx, php-fpm, mysql AND arionum content`  
 `    backup    -- will dump essential tables to a gzipped sql file"`  
 `    import    -- will import a gzipped sql file; 3rd argument (optional): <filename>`  
@@ -70,7 +70,7 @@ If merge errors because you changed file/permissions then...
 `    peers     -- clear peers table. Arguments: <reset>`  
 `    pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete`  
 `    rebuild   -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>`     
-`    require   -- install aronode script requirements`  
+`    require   -- install aronode script prerequisites/requirements`  
 `    reset     -- set Aronode environment config to testnet or mainnet; then rebuild blockchain`  
 `    restart   -- restart all Arionum related services`  
 `    stop      -- stop public facing Arionum related services; php/nginx`  
