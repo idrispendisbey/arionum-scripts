@@ -67,7 +67,7 @@ If merge errors because you changed file/permissions then...
 `    diff      -- view changes/code updates of Aronode's main repository`  
 `    firewall  -- configure UFW firewall. 3rd argument: <install|on|off|remove>`  
 `    mysql     -- Arguments: <get|set|restart> <setting_name> <value>`  
-`    peers     -- Arguments: <reset>`  
+`    peers     -- clear peers table. Arguments: <reset>`  
 `    pop       -- fix stuck syncing; 3rd argument: <integer> of blocks to delete`  
 `    rebuild   -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>`     
 `    require   -- install aronode script requirements`  
