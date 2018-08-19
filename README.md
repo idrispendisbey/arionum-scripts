@@ -99,22 +99,34 @@ $ aronode mainnet sync;
 
 ## Troubleshooting
 If status fails or returns timeout, try the following seperately...   
- - Run 'status' a few times for initial blocks to kick in. Wait a few minutes then run status again.   
- - Run 'restart' function to restart all services. Wait a few minutes then run status again.  
- - Run 'sync' to run sanity manually and monitor progress.  
- - Run 'rebuild' to sync to a remote daily snapshot. 'rebuild latest' if its been awhile.  
- - Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers on next run.
 
- - To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
- - If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+Run 'status' a few times for initial blocks to kick in. Wait a few minutes then run status again.   
+Run 'restart' function to restart all services. Wait a few minutes then run status again.  
+Run 'sync' to run sanity manually and monitor progress.  
+Run 'rebuild' to sync to a remote daily snapshot. 'rebuild latest' if its been awhile.  
+Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers on next run.
 
-## Optimize and Stablize Your Node
-Read this guide. Default php/nginx/mysql settings are too low.I recomend the nginx/php/mysql settings here http://aro.wiki/how-to-secure-your-arionum-nodes/
+To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
+If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+  
+... if stuck try pop ...  
+`aronode mainnet pop 10;`  
+`aronode mainnet peers reset;`   
+`aronode mainnet sync;`  
+... if still stuck go waaaay back ...  
+`aronode mainnet pop 3000;`   
+`aronode mainnet peers reset;`  
+`aronode mainnet sync;`  
+
+If server is constantly crashing, it's probably not the node software, you need to optimize nginx/php/mysql.
+
+## Optimize and Stabilize Your Node
+Default php/nginx/mysql settings are too low. To stabilize your node, I recommend the nginx/php/mysql settings here http://aro.wiki/how-to-secure-your-arionum-nodes/
 
 ## Bugs
 Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.    
 
-If you think you found a bug feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues  
+If you think you found a bug, feel free to submit it here https://github.com/KyleFromOhio/arionum-scripts/issues  
   
 ## Donate to the Project:  
 ARO: aykYPdWN9mkFCEFq9UHwAfZvmKKBsLjCf3GBLYdgebY5ptz8KxMjzTQAJwVkLYEQQ6QjuiyvmhdtUHzByd1Wpf2  
