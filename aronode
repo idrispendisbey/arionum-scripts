@@ -8,10 +8,10 @@
 # Example: bash aronode mainnet install
 usage() {
     echo "USAGE: "
-    echo "  $ sudo bash $0 <testnet|mainnet> <install|upgrade|reset|restart|status|...>"
+    echo "  $ aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>"
     echo "  install    -- install Arionum node and services from scratch"
     echo "  upgrade    -- upgrade all node/server software; php/myql/nginx/packages/node"
-    echo "  update     -- upgrade Arionum node only; git pull only"
+    echo "  update     -- upgrade Arionum node & aronode code; ie. git pull"
     echo "  remove     -- purge nginx, php-fpm, mysql AND arionum content"
     echo "    additional options ..."
     echo "  backup     -- will dump essential tables to a gzipped sql file"
@@ -19,8 +19,8 @@ usage() {
     echo "  change     -- change hostname ip/domain that peers see you as"
     echo "  diff       -- view changes/code updates of Aronode's main repository"
     echo "  firewall   -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
-    echo "  mysql      -- Arguments: <get|set|restart> <setting_name> <value>"
-    echo "  peers      -- Arguments: <reset>"
+    echo "  mysql      -- update my.cnf file. Arguments: <get|set|restart> <setting_name> <value>"
+    echo "  peers      -- clear peers table. Arguments: <reset>"
     echo "  pop        -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
     echo "  rebuild    -- empty db; download remote .sql dump; import chain data; 3rd arg (optional): <latest>"
     echo "  require    -- install aronode script requirements"
@@ -40,14 +40,18 @@ usage() {
 ERROR=false
 ERROR_CHAR="  ⌦  ERROR->"
 CHECK_CHAR="  √"
-INFO_CHAR="  ▷ INFO:"
+INFO_CHAR="    INFO:"
 TASK_CHAR="  ▷ TASK:"
+LOG_CHAR="     LOG:"
+BLANK_CHAR="   "
 
 DOMAIN=""
 WEBROOT="/var/www"
 SECUREOWNER="nobody"
 WEBOWNER="www-data"
 WEBGROUP="www-data"
+
+ARONODE_PATH="/root/scripts"
 
 WEBCONFIGFILE="config.inc.php"
 WEBCONFIGFILESAMPLE="config-sample.inc.php"
@@ -72,8 +76,6 @@ LOCAL_SNAPSHOT="arionum-daily.sql.gz"
 LOCAL_SNAPTEMP="arionum-daily.sql"
 REMOTE_SNAPSHOT="https://aro.pxgamer.xyz/daily/daily.sql.gz"
 
-SCRIPT_PATH=$(pwd)
-
 PACKAGES_GENERAL="git pigz dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
 PHPv="7.2"
 PHPFPM_SERVICE="php7.2-fpm"
@@ -81,7 +83,7 @@ PACKAGES_PHP="php7.2-cli php7.2-fpm php7.2-curl php7.2-gd php7.2-mysql php7.2-mb
 
 DATER=`date +%Y%m%d`
 TIMESTAMPER=`date '+%Y-%m-%d %H:%M:%S'`
-LOG_FILE="$SCRIPT_PATH/aronode_$DATER.log"
+LOG_FILE="$ARONODE_PATH/aronode_$DATER.log"
 
 # Setup logging
 END_LOG_MSG=""
@@ -136,12 +138,12 @@ fi
 # Get version of aronode script
 VERSION_ARONODE="0.1.0"
 aronodeCheckVersion() {
-    if [ -f $SCRIPT_PATH/VERSION ]; then
-        VERSION_ARONODE=`cat $SCRIPT_PATH/VERSION`
+    if [ -f $ARONODE_PATH/VERSION ]; then
+        VERSION_ARONODE=`cat $ARONODE_PATH/VERSION`
     fi
     DATER=`date`
+    echo -e "$INFO_CHAR Aronode Script v$VERSION_ARONODE "
     echo -e "$INFO_CHAR $DATER"
-    echo -e "$INFO_CHAR Aronode Script v$VERSION_ARONODE"
 }
 aronodeCheckVersion
 
@@ -234,7 +236,7 @@ nodeCheckConfigMode() {
             NODE_CONFIG_MODE="testnet"
         fi
     fi
-    echo "$INFO_CHAR NODE_CONFIG_MODE: $NODE_CONFIG_MODE"
+    echo "$INFO_CHAR Network: $NODE_CONFIG_MODE"
 
 }
 
@@ -259,7 +261,7 @@ nodeFindDomainRoot() {
     if [ "$DOMAINROOT" == "" ]; then
         DOMAINROOT="unknown"
     fi
-    echo "$INFO_CHAR DOMAINROOT: $DOMAINROOT"
+    echo "$INFO_CHAR Webroot: $DOMAINROOT"
 }
 
 # apt upgrade
@@ -847,14 +849,14 @@ setupNginxVhost() {
     if [ -f /etc/nginx/sites-available/default ]; then
         mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.vhost
     fi
-    if [ ! -f $SCRIPT_PATH/aronode.vhost ]; then
-        echo "$ERROR_CHAR setupNginxVhost() $SCRIPT_PATH/aronode.vhost not found. Check github, download it, try again.";
+    if [ ! -f $ARONODE_PATH/aronode.vhost ]; then
+        echo "$ERROR_CHAR setupNginxVhost() $ARONODE_PATH/aronode.vhost not found. Check github, download it, try again.";
         exitAsError
     fi
     # enable vhost
     VHOST_PATH_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.vhost"
     VHOST_PATH_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.vhost"
-    cat $SCRIPT_PATH/aronode.vhost > $VHOST_PATH_AVAILABLE
+    cat $ARONODE_PATH/aronode.vhost > $VHOST_PATH_AVAILABLE
     sed -i "s/__DOMAIN__/$DOMAIN/g" $VHOST_PATH_AVAILABLE
     sed -i "s~__WEBROOT__~$WEBROOT~g" $VHOST_PATH_AVAILABLE
     if [ ! -L "$VHOST_PATH_ENABLED" ]; then
@@ -899,6 +901,24 @@ gitInitNode() {
         exitAsError
     fi
 }
+gitPullAronode() {
+
+    PWD=`pwd`
+    cd $ARONODE_PATH
+    if [ -d .git ]; then
+        echo "$TASK_CHAR Updating aronode script ..."
+        git fetch --all
+        git reset --hard origin/master
+    fi
+    cd $PWD
+}
+symlinkAronode() {
+    if [[ -d /usr/local/bin && ! -L /usr/local/bin/aronode ]]; then
+        echo "$TASK_CHAR Creating aronode symlink in /usr/local/bin/aronode ..."
+        ln -s $ARONODE_PATH/aronode /usr/local/bin/aronode
+    fi
+}
+
 
 setupNodeConfig() {
     echo "$TASK_CHAR Updating node database config..."
@@ -995,9 +1015,9 @@ nodeInstall() {
 }
 
 nodeUpdate() {
-    echo "Starting Arionum node update ..."
+    echo "$TASK_CHAR Starting Arionum node update ..."
 
-    echo "$TASK_CHAR Locating Arionum node installation directory ..."
+    echo "$INFO_CHAR Locating Arionum node installation directory ..."
     # detect path of node software; look for $WEBCONFIGPATH
     # nodeFindDomainRoot
     # cd to domain root path
@@ -1005,7 +1025,7 @@ nodeUpdate() {
         PWD=`pwd`
         cd $DOMAINROOT
         echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
-        echo "$TASK_CHAR Getting node updates from git ..."
+        echo "$INFO_CHAR Getting node updates from git ..."
 
         cp -f $DOMAINROOT/$WEBCONFIGPATH $DOMAINROOT/$WEBCONFIGPATHBACKUP
         git pull origin master
@@ -1021,13 +1041,13 @@ nodeUpdate() {
 }
 
 nodeUpgrade() {
-    echo "Starting Arionum node upgrade ..."
+    echo "$TASK_CHAR Starting Arionum node upgrade ..."
 
-    echo "$TASK_CHAR Upgrading server packages ..."
+    echo "$INFO_CHAR Upgrading server packages ..."
     serverUpgrade
     echo "$CHECK_CHAR Server packages updated."
 
-    echo "$TASK_CHAR Locating Arionum node installation directory ..."
+    echo "$INFO_CHAR Locating Arionum node installation directory ..."
     # detect path of node software; look for $WEBCONFIGPATH
     # nodeFindDomainRoot
     # cd to domain root path
@@ -1035,7 +1055,7 @@ nodeUpgrade() {
         PWD=`pwd`
         cd $DOMAINROOT
         echo "$INFO_CHAR Installation directory found: $DOMAINROOT"
-        echo "$TASK_CHAR Getting node updates from git ..."
+        echo "$INFO_CHAR Getting node updates from git ..."
 
         cp -f $DOMAINROOT/$WEBCONFIGPATH $DOMAINROOT/$WEBCONFIGPATHBACKUP
         git pull origin master
@@ -1058,18 +1078,18 @@ backupDb() {
         apt-get -qq install pigz -y;
     fi
 
-    echo "$TASK_CHAR exporting blockchain data ..."
+    echo "$TASK_CHAR exporting blockchain data (PLEASE WAIT) ..."
     # get estimated db size
     SIZE_BYTES=$(sudo -H mysql  <<< 'SELECT ROUND(SUM(data_length) * 0.60) AS "size_bytes" FROM information_schema.TABLES;' | tail -n1)
 
     # only backup blockchain table data
-    sudo -H mysqldump $DBNAME $BLOCKCHAIN_TABLES --skip-quote-names | pv --progress --size $SIZE_BYTES > "$BACKUP_FILENAME.sql"
+    sudo -H mysqldump $DBNAME $BLOCKCHAIN_TABLES --skip-quote-names | pv --progress --size $SIZE_BYTES > "$ARONODE_PATH/$BACKUP_FILENAME.sql"
     echo "$CHECK_CHAR backup exported."
 
-    echo "$TASK_CHAR compressing blockchain backup to $BACKUP_FILENAME.sql.gz ..."
-    pv "$BACKUP_FILENAME.sql" | pigz -f > "$BACKUP_FILENAME.sql.gz"
-    if [ -f "$BACKUP_FILENAME.sql" ]; then
-        rm "$BACKUP_FILENAME.sql"
+    echo "$TASK_CHAR compressing blockchain backup to $ARONODE_PATH/$BACKUP_FILENAME.sql.gz (PLEASE WAIT) ..."
+    pv "$ARONODE_PATH/$BACKUP_FILENAME.sql" | pigz -f > "$ARONODE_PATH/$BACKUP_FILENAME.sql.gz"
+    if [ -f "$ARONODE_PATH/$BACKUP_FILENAME.sql" ]; then
+        rm "$ARONODE_PATH/$BACKUP_FILENAME.sql"
     fi
     echo "$CHECK_CHAR backup compressed."
 }
@@ -1078,21 +1098,21 @@ importDb() {
 
     # get third argument (optional) for sql filename
     if [[ "$ARG_THREE" == "" ]]; then
-        BACKUP_FILENAME="$SCRIPT_PATH/aronode_dump.sql.gz"
+        BACKUP_FILEPATH="$ARONODE_PATH/$BACKUP_FILENAME.sql.gz"
     else
-        BACKUP_FILENAME="$ARG_THREE"
+        BACKUP_FILEPATH="$ARG_THREE"
     fi
 
     # add current path if not full path
-    if [[ ! $BACKUP_FILENAME == /* ]]; then
-        BACKUP_FILENAME="$SCRIPT_PATH/$BACKUP_FILENAME"
-    fi
+    #if [[ ! $BACKUP_FILEPATH == /* ]]; then
+    #    BACKUP_FILEPATH="$ARONODE_PATH/$BACKUP_FILENAME"
+    #fi
 
 
     # remove .gz from filename
-    BACKUP_FILENAME_SQL=`echo $BACKUP_FILENAME | sed -e 's/\(\.gz\)*$//g'`
+    BACKUP_FILEPATH_SQL=`echo $BACKUP_FILEPATH | sed -e 's/\(\.gz\)*$//g'`
 
-    if [ -f $BACKUP_FILENAME ]; then
+    if [ -f $BACKUP_FILEPATH ]; then
 
         # clean db
         nodeEmptyChain
@@ -1103,25 +1123,25 @@ importDb() {
 
         # 2) pv unzip
         echo "$INFO_CHAR extracting blockchain from dump (PLEASE WAIT) ..."
-        gunzip -c --keep "$BACKUP_FILENAME" | pv > "$BACKUP_FILENAME_SQL"
+        gunzip -c --keep "$BACKUP_FILEPATH" | pv > "$BACKUP_FILEPATH_SQL"
 
         # 3) append top/bottom commands
         echo "$INFO_CHAR adding foreign_key_checks fix ..."
-        sed -i "1s/^/$CMD_BEFORE_IMPORT\n/" "$BACKUP_FILENAME_SQL"
-        echo $CMD_AFTER_IMPORT >> "$BACKUP_FILENAME_SQL"
+        sed -i "1s/^/$CMD_BEFORE_IMPORT\n/" "$BACKUP_FILEPATH_SQL"
+        echo $CMD_AFTER_IMPORT >> "$BACKUP_FILEPATH_SQL"
         # 4) import sql.gz file into mysql database w/ progress bar
         echo "$INFO_CHAR importing blockchain dump (PLEASE WAIT) ..."
-        pv "$BACKUP_FILENAME_SQL" | sudo -H mysql  -D $DBNAME
+        pv "$BACKUP_FILEPATH_SQL" | sudo -H mysql  -D $DBNAME
 
         # 5) cleanup
-        if [ -f "$BACKUP_FILENAME_SQL" ]; then
-            rm "$BACKUP_FILENAME_SQL"
+        if [ -f "$BACKUP_FILEPATH_SQL" ]; then
+            rm "$BACKUP_FILEPATH_SQL"
         fi
 
         echo "$CHECK_CHAR backup restored."
 
     else
-        echo "$ERROR_CHAR $BACKUP_FILENAME not found. Nothing to import."
+        echo "$ERROR_CHAR $BACKUP_FILEPATH not found. Nothing to import."
         exitAsError
     fi
 
@@ -1131,7 +1151,7 @@ importDb() {
 
 removeRebuildDaily() {
     # make sure in script path
-    cd $SCRIPT_PATH
+    cd $ARONODE_PATH
 
     # if any dumps found; delete them
     if ls $LOCAL_SNAPTEMP* 1> /dev/null 2>&1; then
@@ -1145,7 +1165,7 @@ removeRebuildDaily() {
 nodeRebuild() {
 
     # make sure in script path
-    cd $SCRIPT_PATH
+    cd $ARONODE_PATH
 
     # check if mainnet ONLY; ERROR if testnet.
     #nodeCheckConfigMode
@@ -1409,7 +1429,7 @@ nodeDiff() {
     cd $DOMAINROOT
     git fetch origin
     git diff --color master origin/master
-    echo "$CHECK_CHAR Any available updates have been printed to screen above."
+    echo "$CHECK_CHAR Available updates (if any) have been printed above this line."
     cd $PWD
 
 }
@@ -1561,6 +1581,7 @@ case "$ARG_CALL" in
         ;;
     "install")
         startLogging
+        symlinkAronode
         nodeInstall
         ;;
     "mysql")
@@ -1628,7 +1649,6 @@ case "$ARG_CALL" in
             ARG_THREE=""
         else
             ARG_THREE=$3
-            echo "$INFO_CHAR ARG_THREE: $ARG_THREE"
         fi
 
         startLogging
@@ -1704,6 +1724,8 @@ case "$ARG_CALL" in
         runSanity
         ;;
     "upgrade")
+        gitPullAronode
+        symlinkAronode
         startLogging
         nodeStop
         hardenMysql
@@ -1722,6 +1744,8 @@ case "$ARG_CALL" in
         nodeRefresh
         ;;
     "update")
+        gitPullAronode
+        symlinkAronode
         nodeUpdate
         fixNodePermissions
         ;;
@@ -1739,8 +1763,3 @@ echo -e "$CHECK_CHAR SCRIPT COMPLETE. For more guides, visit www.aro.wiki"
 echo -e ""
 
 exit 0
-
-
-
-
-
