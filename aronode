@@ -909,6 +909,7 @@ gitPullAronode() {
         echo "$TASK_CHAR Updating aronode script ..."
         git fetch --all
         git reset --hard origin/master
+        chmod +x $ARONODE_PATH/aronode
     fi
     cd $PWD
 }
