@@ -4,6 +4,9 @@ A series of useful scripts for managing an Arionum testnet and/or mainnet node.
 For more information, visit official site at http://www.arionum.com   
 For some technical guides, visit http://www.aro.wiki
 
+* auto-gen TOC:
+{:toc}
+
 # SCRIPT: Arionum Node Setup 
 
 aronode: This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(Mysql).  
