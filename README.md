@@ -4,9 +4,6 @@ A series of useful scripts for managing an Arionum testnet and/or mainnet node.
 For more information, visit official site at http://www.arionum.com   
 For some technical guides, visit http://www.aro.wiki
 
-* auto-gen TOC:
-{:toc}
-
 # SCRIPT: Arionum Node Setup 
 
 aronode: This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(Mysql).  
@@ -20,15 +17,12 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 5. Minimum Hardware Recomendation: 2+ CPU 2GB+ RAM (for node); 4GB+ RAM (for masternode)
 
 ## Arionum Node Installation Example
-`$ sudo su -`  
-`$ cd ~`  
-`$ apt-get update`  
-`$ apt-get install git -y`  
-`$ mkdir scripts`  
-`$ cd scripts`  
-`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .`  
-`$ chmod +x aronode`  
-`$ bash aronode mainnet install` 
+`$ sudo su -;`    
+`$ apt-get update && apt-get install git -y;`  
+`$ cd ~; mkdir scripts; cd scripts;`  
+`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;`  
+`$ chmod +x aronode;`  
+`$ bash aronode mainnet install;` 
 
 IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
 
@@ -36,15 +30,15 @@ IMPORTANT: Once your node is installed, you need to initialize it by visiting ht
 A new install will slowly start syncing from block 1. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.      
 `$ aronode mainnet rebuild`   
 
-If you run this command in the future and want the latest snapshot just add the word 'latest to end of it. The script will use the file if it exists already instead of downloading a new one.  
+If you run this command in the future and want the latest snapshot just add the word 'latest' to end of it. The script will use the file if it exists already instead of downloading a new one. 'latest' pulls in a new one. 
 
 `$ aronode mainnet rebuild latest`     
 
-You can also use 'backup' (to export your own dump) and 'import' (with a filename) if you want to import a different dump that you have.
+You can also use 'backup' (to export your own dump) and 'import' (optionally with a filename if you want to import a different dump that you have).
 
 ## Update Aronode script to Latest Version
 
-Automatically ...  
+Automatically (will update both aronode and Arionum node software ...  
 `$ aronode mainnet update`   
 
 Manually ...   
@@ -56,7 +50,7 @@ If merge errors because you changed file/permissions then...
 `$ git reset --hard origin/master`  
 
 ## Arionum Node Usage
-`$ bash aronode mainnet install`  
+`$ bash aronode mainnet install`   
 `$ aronode mainnet upgrade`    
 `$ aronode mainnet update`   
 `$ aronode mainnet status`  
@@ -64,7 +58,7 @@ If merge errors because you changed file/permissions then...
 ## Additional Options
 `$ aronode help`  
 
-`$ bash aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
+`$ aronode <testnet|mainnet> <install|upgrade|reset|restart|status|...>`   
 `    install   -- install Arionum node and services from scratch`  
 `    upgrade   -- upgrade existing Arionum node setup`  
 `    update    -- upgrade Arionum node & aronode code; ie. git pull`  
@@ -113,6 +107,9 @@ If status fails or returns timeout, try the following seperately...
 
  - To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
  - If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+
+## Optimize and Stablize Your Node
+Read this guide. Default php/nginx/mysql settings are too low.I recomend the nginx/php/mysql settings here http://aro.wiki/how-to-secure-your-arionum-nodes/
 
 ## Bugs
 Bash script has "set -e" commented out which means it will NOT HALT on any errors. NOT responsible if you hose your server SO use a clean server that you can re-provision with ease.    
