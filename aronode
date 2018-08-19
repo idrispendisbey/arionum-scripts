@@ -891,6 +891,7 @@ gitInitNode() {
 
         git fetch --all --prune
         git checkout master
+        git config core.fileMode false
         if [ ! -f "$DOMAINROOT/$WEBCONFIGPATH" ]; then
             cp -f $DOMAINROOT/$WEBCONFIGPATHSAMPLE $DOMAINROOT/$WEBCONFIGPATH
         fi
@@ -910,6 +911,7 @@ gitPullAronode() {
         git fetch --all
         git reset --hard origin/master
         chmod +x $ARONODE_PATH/aronode
+        git config core.fileMode false
     fi
     cd $PWD
 }
@@ -1030,6 +1032,7 @@ nodeUpdate() {
 
         cp -f $DOMAINROOT/$WEBCONFIGPATH $DOMAINROOT/$WEBCONFIGPATHBACKUP
         git pull origin master
+        git config core.fileMode false
         cp -f $DOMAINROOT/$WEBCONFIGPATHBACKUP $DOMAINROOT/$WEBCONFIGPATH
 
         echo "$CHECK_CHAR Node update complete."
