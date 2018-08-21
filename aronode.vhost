@@ -27,6 +27,8 @@ server {
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
+        # increase buffers: https://gist.github.com/magnetikonline/11312172
+        fastcgi_buffers 8 4k; # max 32KB
 
         fastcgi_read_timeout 180;
     }
