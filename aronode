@@ -26,6 +26,7 @@ usage() {
     echo "  require    -- install aronode script requirements"
     echo "  reset      -- set Aronode environment config to testnet or mainnet; then rebuild blockchain"
     echo "  restart    -- restart all Arionum related services; php/nginx/mysql"
+    echo "  resync-accounts -- check ALL account balances table; time consuming."
     echo "  stop       -- stop public facing Arionum related services; php/nginx"
     echo "  status     -- check status of services"
     echo "  sync       -- runs sanity.php manually so you can monitor the sync; CTRL+C to kill"
@@ -186,6 +187,7 @@ if [[ -z "2" || (
     "$2" != "require" &&
     "$2" != "reset" &&
     "$2" != "restart" &&
+    "$2" != "resync-accounts" &&
     "$2" != "stop" &&
     "$2" != "status" &&
     "$2" != "sync" &&
@@ -966,7 +968,7 @@ nodeInstall() {
     DOMAIN=`echo "$DOMAIN" | awk '{print tolower($0)}'`
     # strip www. from beginning
     DOMAIN=`echo "$DOMAIN" | sed -e "s/^www\.//"`
-    REGEX='^[a-z]+[a-z0-9\-\.]{1,252}[a-z]{2,24}$';
+    REGEX="^[a-z][a-z0-9\.-]{1,252}[a-z\.]{2,24}$";
     if ! [[ "$DOMAIN" =~ $REGEX ]]; then
         echo "$ERROR_CHAR Invalid domain entered ..."
         exitAsError
@@ -1216,6 +1218,10 @@ nodeEmptyChain() {
     # FIX BUG: foreign key restraint on import of dump
     CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
     CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
+    
+    # clear sanity or this will fail
+    killSanity
+    removeSanityLock
 
     # use arionum utility
     PWD=`pwd`
@@ -1715,6 +1721,21 @@ case "$ARG_CALL" in
         nodeStart
         queueSanity
         nodeStatus
+        ;;
+    "resync-accounts")
+        startLogging
+        echo ""
+        read -p "WARNING: Will check ALL account balances & may take a long time. Continue? (yes|no): " RESYNCACCNT_CONTINUE
+        if ! [[ "$RESYNCACCNT_CONTINUE" == "yes" ]]; then
+            echo -e "$ERROR_CHAR You did not type 'yes'. Halting.\n"
+            exitAsError
+        fi
+        # run resync-accounts
+        echo "$INFO_CHAR Resyncing accounts ... (PLEASE WAIT) ..."
+        PWD=`pwd`
+        cd $DOMAINROOT
+        php -f util.php resync-accounts
+        cd $PWD
         ;;
     "status")
         nodeStatus
