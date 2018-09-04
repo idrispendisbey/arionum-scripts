@@ -79,7 +79,7 @@ REMOTE_SNAPSHOT="https://aro.pxgamer.xyz/daily/daily.sql.gz"
 PACKAGES_GENERAL="git pigz dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
 PHPv="7.2"
 PHPFPM_SERVICE="php7.2-fpm"
-PACKAGES_PHP="php7.2-cli php7.2-fpm php7.2-curl php7.2-gd php7.2-mysql php7.2-mbstring php7.2-common php-bcmath php-gmp"
+PACKAGES_PHP="php7.2-cli php7.2-curl php7.2-mysql php7.2-mbstring php7.2-common php-bcmath php-gmp php7.2-gd php7.2-fpm"
 
 DATER=`date +%Y%m%d`
 TIMESTAMPER=`date '+%Y-%m-%d %H:%M:%S'`
@@ -1219,6 +1219,8 @@ nodeEmptyChain() {
 
     # use arionum utility
     PWD=`pwd`
+    killSanity
+    removeSanityLock
     cd $DOMAINROOT
     CMD=`php -f util.php clean`
     CMD="${CMD//[$'\t\r\n']}"
