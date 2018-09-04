@@ -20,7 +20,7 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 `$ sudo su -;`    
 `$ apt-get update && apt-get install git -y;`  
 `$ cd ~; mkdir scripts; cd scripts;`  
-`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;`  
+`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;` 
 `$ chmod +x aronode;`  
 `$ bash aronode mainnet install;` 
 
@@ -96,7 +96,13 @@ $ aronode mainnet status;
 You can manually sync the rest with...  
 $ aronode mainnet sync;  
 
-
+## Uninstall Start Over / Remove  
+If you borked setup and you need to start from scratch, you can do the following to purge and reinstall.  
+Note this will PURGE/DELETE/DESTROY all mysql, nginx, and php files AND data.  
+`$ cd ~/scripts;`   
+`$ bash aronode mainnet remove;`    
+`$ bash aronode mainnet install;`     
+  
 ## Troubleshooting
 If status fails or returns timeout, try the following seperately...   
 
