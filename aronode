@@ -1218,15 +1218,13 @@ nodeEmptyChain() {
     # FIX BUG: foreign key restraint on import of dump
     CMD_BEFORE_IMPORT=" SET foreign_key_checks=0; "
     CMD_AFTER_IMPORT=" SET foreign_key_checks=1; "
-    
+
     # clear sanity or this will fail
     killSanity
     removeSanityLock
 
     # use arionum utility
     PWD=`pwd`
-    killSanity
-    removeSanityLock
     cd $DOMAINROOT
     CMD=`php -f util.php clean`
     CMD="${CMD//[$'\t\r\n']}"
