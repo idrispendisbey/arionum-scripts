@@ -117,7 +117,10 @@ Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers 
 To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
 If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
 Try not to use "rebuild latest" unless your local snapshot is months old.  
-  
+
+Make sure oyu have latest aronode AND latest arionum node software...  
+`aronode mainnet update;`  
+
 ... if stuck try pop ...  
 `aronode mainnet pop 10;`  
 `aronode mainnet peers reset;`   
