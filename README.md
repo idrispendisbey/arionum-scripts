@@ -109,11 +109,14 @@ If status fails or returns timeout, try the following seperately...
 Run 'status' a few times for initial blocks to kick in. Wait a few minutes then run status again.   
 Run 'restart' function to restart all services. Wait a few minutes then run status again.  
 Run 'sync' to run sanity manually and monitor progress.  
-Run 'rebuild' to sync to a remote daily snapshot. 'rebuild latest' if its been awhile.  
-Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers on next run.
+
+If node still does not sync, you might have a bad block ...  
+Run 'rebuild' to sync to the local snapshot (if any). 'rebuild latest' if its been awhile and you want a fresh copy.  
+Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers list on next run.
 
 To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
 If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
+Try not to use "rebuild latest" unless your local snapshot is months old.  
   
 ... if stuck try pop ...  
 `aronode mainnet pop 10;`  
@@ -121,6 +124,10 @@ If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and 
 `aronode mainnet sync;`  
 ... if still stuck go waaaay back ...  
 `aronode mainnet pop 3000;`   
+`aronode mainnet peers reset;`  
+`aronode mainnet sync;`  
+... if you got a bad block you cant get past ...  
+`aronode mainnet rebuild;`   
 `aronode mainnet peers reset;`  
 `aronode mainnet sync;`  
 
