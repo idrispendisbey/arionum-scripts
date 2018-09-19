@@ -276,6 +276,7 @@ serverUpgrade() {
     fi
 
     export DEBIAN_FRONTEND=noninteractive
+    add-apt-repository universe -y
     apt-get -qq update && apt-get -qq dist-upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" && apt-get -qq autoremove -y
     packageInstallGeneral
     echo "$CHECK_CHAR Packages updated."
@@ -625,6 +626,7 @@ packageInstallNtp(){
 
 packageInstallGeneral() {
     echo "$TASK_CHAR packageInstallGeneral() Installing required packages ..."
+    add-apt-repository universe -y
     apt-get -qq install apt-transport-https -y
     apt-get -qq install $PACKAGES_GENERAL -y
     echo "$CHECK_CHAR Server packages installed."
