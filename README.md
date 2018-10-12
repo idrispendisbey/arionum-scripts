@@ -18,10 +18,10 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 
 ## Arionum Node Installation Example
 `$ sudo su -;`    
-`$ apt-get update && apt-get install git -y;`  
-`$ cd ~; mkdir scripts; cd scripts;`  
-`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;` 
-`$ chmod +x aronode;`  
+`$ apt-get update && apt-get install git -y;`   
+`$ cd ~; mkdir scripts; cd scripts;`   
+`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;`   
+`$ chmod +x aronode;`   
 `$ bash aronode mainnet install;` 
 
 IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
