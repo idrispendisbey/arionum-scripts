@@ -6,13 +6,13 @@ For some technical guides, visit http://www.aro.wiki
 
 # SCRIPT: Arionum Node Setup 
 
-aronode: This script will install and configure Nginx, PHP-FPM 7.2, and MariaDB(Mysql).  
+aronode: This script will install and configure Nginx, PHP-FPM, and MariaDB(Mysql).  
 It will clone the Arionum node software from https://github.com/arionum/node and configure the system.  
 
 ## Arionum Node Requirements
 1. Ubuntu 16.04/18.04 LTS 64-bit 
 2. Fresh clean vanilla server.  
-3. Nginx, PHP-FPM 7.2, and MariaDB will be installed and configured.  
+3. Nginx, PHP-FPM, and MariaDB will be installed and configured.  
 4. Not responsible if you hose your existing setup
 5. Minimum Hardware Recomendation: 2+ CPU 2GB+ RAM (for node); 4GB+ RAM (for masternode)
 
