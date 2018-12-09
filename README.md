@@ -18,10 +18,10 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 
 ## Arionum Node Installation Example
 `$ sudo su -;`    
-`$ apt-get update && apt-get install git -y;`  
-`$ cd ~; mkdir scripts; cd scripts;`  
-`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;`  
-`$ chmod +x aronode;`  
+`$ apt-get update && apt-get install git -y;`   
+`$ cd ~; mkdir scripts; cd scripts;`   
+`$ git clone https://github.com/KyleFromOhio/arionum-scripts.git .;`   
+`$ chmod +x aronode;`   
 `$ bash aronode mainnet install;` 
 
 IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
@@ -96,25 +96,41 @@ $ aronode mainnet status;
 You can manually sync the rest with...  
 $ aronode mainnet sync;  
 
-
+## Uninstall Start Over / Remove  
+If you borked setup and you need to start from scratch, you can do the following to purge and reinstall.  
+Note this will PURGE/DELETE/DESTROY all mysql, nginx, and php files AND data.  
+`$ cd ~/scripts;`   
+`$ bash aronode mainnet remove;`    
+`$ bash aronode mainnet install;`     
+  
 ## Troubleshooting
 If status fails or returns timeout, try the following seperately...   
 
 Run 'status' a few times for initial blocks to kick in. Wait a few minutes then run status again.   
 Run 'restart' function to restart all services. Wait a few minutes then run status again.  
 Run 'sync' to run sanity manually and monitor progress.  
-Run 'rebuild' to sync to a remote daily snapshot. 'rebuild latest' if its been awhile.  
-Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers on next run.
+
+If node still does not sync, you might have a bad block ...  
+Run 'rebuild' to sync to the local snapshot (if any). 'rebuild latest' if its been awhile and you want a fresh copy.  
+Run 'peers reset' to clear peers table. sync and/or sanity will replenish peers list on next run.
 
 To speed up initial sync use the "rebuild" function. This will download a snapshot from pxgamer, import it and restart.  
 If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.  
-  
+Try not to use "rebuild latest" unless your local snapshot is months old.  
+
+... Make sure oyu have latest aronode AND latest arionum node software ...  
+`aronode mainnet update;`  
+
 ... if stuck try pop ...  
 `aronode mainnet pop 10;`  
 `aronode mainnet peers reset;`   
 `aronode mainnet sync;`  
 ... if still stuck go waaaay back ...  
 `aronode mainnet pop 3000;`   
+`aronode mainnet peers reset;`  
+`aronode mainnet sync;`  
+... if you got a bad block you cant get past ...  
+`aronode mainnet rebuild;`   
 `aronode mainnet peers reset;`  
 `aronode mainnet sync;`  
 
