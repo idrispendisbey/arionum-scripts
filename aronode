@@ -78,13 +78,19 @@ LOCAL_SNAPTEMP="arionum-daily.sql"
 REMOTE_SNAPSHOT="https://aro.pxgamer.xyz/daily/daily.sql.gz"
 
 PACKAGES_GENERAL="git pigz dirmngr bc vim-nox htop ncdu cpulimit curl tar gzip wget zip unzip pv"
-PHPv="7.2"
-PHPFPM_SERVICE="php7.2-fpm"
-PACKAGES_PHP="php7.2-cli php7.2-curl php7.2-mysql php7.2-mbstring php7.2-common php-bcmath php-gmp php7.2-gd php7.2-fpm"
+PHPv="7.3"
+PHPFPM_SERVICE="php$PHPv-fpm"
+PACKAGES_PHP="php$PHPv-cli php$PHPv-curl php$PHPv-mysql php$PHPv-mbstring php$PHPv-common php$PHPv-bcmath php$PHPv-gmp php$PHPv-gd php$PHPv-fpm"
 
 DATER=`date +%Y%m%d`
 TIMESTAMPER=`date '+%Y-%m-%d %H:%M:%S'`
 LOG_FILE="$ARONODE_PATH/aronode_$DATER.log"
+
+VHOSTS=()
+# detect all folders in WEBDIR
+while IFS= read -d $'\0' -r VHOST ; do
+    VHOSTS=("${VHOSTS[@]}" "$VHOST")
+done < <(find $WEBROOT -maxdepth 1 -mindepth 1 -type d -print0)
 
 # Setup logging
 END_LOG_MSG=""
@@ -282,6 +288,46 @@ serverUpgrade() {
 
     # set/fix mysql config
     mysqlOptimizeConfig
+
+}
+
+
+# check php version
+checkPhpVersion() {
+    PHP_VERSION_CLI=$(php -v | head -n1 | cut -d" " -f2 | cut -c1-3)
+}
+# upgrade php version
+packageUpgradePhp() {
+    checkPhpVersion
+    # upgrade php fpm and vhost from 7.2 to $PHPv
+    if [ "$PHP_VERSION_CLI" == "7.2" ]; then
+        echo "$TASK_CHAR Upgrading PHP 7.2 to $PHPv ..."
+        # stop services
+        systemctl stop nginx
+        systemctl stop php7.2-fpm
+        # disable 7.2 service
+        systemctl disable php7.2-fpm
+        # install new php packages
+        packageInstallPhp
+        # enable/start new php fpm service
+        systemctl enable $PHPFPM_SERVICE
+
+        # find arionum vhosts and update config to use new php version
+        for KEY in "${!VHOSTS[@]}";
+        do
+            DIR_NAME=${VHOSTS[$KEY]}
+            THISWEBNAME=$(basename $DIR_NAME)
+            # update vhost
+            THISVHOST="/etc/nginx/sites-available/$THISWEBNAME.vhost"
+            sed -i "s/php7.2-fpm/php$PHPv-fpm/g" $THISVHOST
+            echo "$CHECK_CHAR Vhost updated: $THISVHOST"
+        done
+        # check ok?
+        nginx -t
+
+        # restart nginx and php fpm
+        nodeStart
+    fi
 }
 
 # create tmp/db-update for code to do a db update
@@ -396,7 +442,7 @@ nodeStart() {
         echo "$ERROR_CHAR nodeStart() php-fpm service failed. Check php-fpm logs in /var/log/";
         exitAsError
     else
-        echo "$CHECK_CHAR php-fpm: started."
+        echo "$CHECK_CHAR php fpm: started."
     fi
     if [ "$UP_MYSQL" == "no" ]; then
         echo "$ERROR_CHAR nodeStart() mysql service failed. Check mysql logs in /var/log/";
@@ -861,6 +907,7 @@ setupNginxVhost() {
     cat $ARONODE_PATH/aronode.vhost > $VHOST_PATH_AVAILABLE
     sed -i "s/__DOMAIN__/$DOMAIN/g" $VHOST_PATH_AVAILABLE
     sed -i "s~__WEBROOT__~$WEBROOT~g" $VHOST_PATH_AVAILABLE
+    sed -i "s/__PHPVERSION__/$PHPv/g" $VHOST_PATH_AVAILABLE
     if [ ! -L "$VHOST_PATH_ENABLED" ]; then
         ln -s $VHOST_PATH_AVAILABLE $VHOST_PATH_ENABLED
         echo "$CHECK_CHAR vhost setup in Nginx at $VHOST_PATH_AVAILABLE"
@@ -1340,9 +1387,10 @@ nodeStatus() {
 
     upPhp
     if [ "$UP_PHP" == "yes" ]; then
-        echo "$CHECK_CHAR php-fpm: OK"
+        checkPhpVersion
+        echo "$CHECK_CHAR php-fpm: OK ($PHP_VERSION_CLI)"
     else
-        echo "$ERROR_CHAR php-fpm: FAIL"
+        echo "$ERROR_CHAR php-fpm: FAIL ($PHP_VERSION_CLI)"
     fi
 
     upMysql
@@ -1752,6 +1800,8 @@ case "$ARG_CALL" in
         gitPullAronode
         symlinkAronode
         startLogging
+
+        packageUpgradePhp
         nodeStop
         hardenMysql
         nodeStopDb
