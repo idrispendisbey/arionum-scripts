@@ -19,6 +19,7 @@ usage() {
     echo "  change     -- change hostname ip/domain that peers see you as"
     echo "  diff       -- view changes/code updates of Aronode's main repository"
     echo "  firewall   -- configure UFW firewall. 3rd argument: <install|on|off|remove>"
+    echo "  fix        -- runs through some breaking change fix functions eg. fix020()"
     echo "  mysql      -- update my.cnf file. Arguments: <get|set|restart> <setting_name> <value>"
     echo "  peers      -- clear peers table. Arguments: <reset>"
     echo "  pop        -- fix stuck syncing; 3rd argument: <integer> of blocks to delete"
@@ -47,6 +48,7 @@ LOG_CHAR="     LOG:"
 BLANK_CHAR="   "
 
 DOMAIN=""
+DOMAINFOUND="unknown"
 WEBROOT="/var/www"
 SECUREOWNER="nobody"
 WEBOWNER="www-data"
@@ -131,14 +133,14 @@ if [ "$UNAME" != "Linux-x86_64" ]; then
     ERROR=true
 fi
 if [ "$OS_DISTRO" != "Ubuntu" ]; then
-    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic. Wrong operating system."
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic LTS only. Wrong operating system."
     ERROR=true
 fi
 if [[
     "$OS_NAME" != "xenial" &&
     "$OS_NAME" != "bionic"
 ]]; then
-    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic. Wrong operating system."
+    echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic LTS only. Wrong operating system."
     ERROR=true
 fi
 
@@ -183,6 +185,7 @@ if [[ -z "2" || (
     "$2" != "change" &&
     "$2" != "diff" &&
     "$2" != "firewall" &&
+    "$2" != "fix" &&
     "$2" != "install" &&
     "$2" != "import" &&
     "$2" != "mysql" &&
@@ -270,6 +273,7 @@ nodeFindDomainRoot() {
         DOMAINROOT="unknown"
     fi
     echo "$INFO_CHAR Webroot: $DOMAINROOT"
+    DOMAINFOUND=$(basename "$DOMAINROOT")
 }
 
 # apt upgrade
@@ -312,6 +316,8 @@ packageUpgradePhp() {
         packageInstallPhp
         # enable/start new php fpm service
         systemctl enable $PHPFPM_SERVICE
+        # make sure fix v0.2.0 is run first
+        fix020
 
         # find arionum vhosts and update config to use new php version
         for KEY in "${!VHOSTS[@]}";
@@ -319,7 +325,7 @@ packageUpgradePhp() {
             DIR_NAME=${VHOSTS[$KEY]}
             THISWEBNAME=$(basename $DIR_NAME)
             # update vhost
-            THISVHOST="/etc/nginx/sites-available/$THISWEBNAME.vhost"
+            THISVHOST="/etc/nginx/conf.d/$THISWEBNAME.conf"
             sed -i "s/php7.2-fpm/php$PHPv-fpm/g" $THISVHOST
             echo "$CHECK_CHAR Vhost updated: $THISVHOST"
         done
@@ -882,31 +888,21 @@ setupNginxVhost() {
     sed -i "s/user  nginx;/user  $WEBOWNER $WEBOWNER;/g" /etc/nginx/nginx.conf
 
     # create/delete default vhost file(s)
-    if [ -L /etc/nginx/sites-enabled/default ]; then
-        unlink /etc/nginx/sites-enabled/default
-    fi
-    if [ -L /etc/nginx/sites-enabled/default.vhost ]; then
-        unlink /etc/nginx/sites-enabled/default.vhost
-    fi
     if [ -f /etc/nginx/conf.d/default.conf ]; then
         rm /etc/nginx/conf.d/default.conf
     fi
 
-    # setup vhosts config
+    # delete old vhost config (if exists)
     if [ ! -f /etc/nginx/conf.d/vhosts.conf ]; then
-        #echo "include /etc/nginx/sites-enabled/*;" > /etc/nginx/conf.d/vhosts.conf
-        echo ""
+        rm /etc/nginx/conf.d/vhosts.conf
     fi
-    if [ -f /etc/nginx/sites-available/default ]; then
-        mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.vhost
-    fi
+
     if [ ! -f $ARONODE_PATH/aronode.vhost ]; then
         echo "$ERROR_CHAR setupNginxVhost() $ARONODE_PATH/aronode.vhost not found. Check github, download it, try again.";
         exitAsError
     fi
     # enable vhost
-    VHOST_PATH_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.vhost"
-    VHOST_PATH_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.vhost"
+    VHOST_PATH_AVAILABLE="/etc/nginx/conf.d/$DOMAIN.conf"
     cat $ARONODE_PATH/aronode.vhost > $VHOST_PATH_AVAILABLE
     sed -i "s/__DOMAIN__/$DOMAIN/g" $VHOST_PATH_AVAILABLE
     sed -i "s~__WEBROOT__~$WEBROOT~g" $VHOST_PATH_AVAILABLE
@@ -927,6 +923,21 @@ setupNginxVhost() {
         echo "$CHECK_CHAR Nginx restarted and running."
     fi
 
+}
+# v0.2.0 changes: move old sites-enabled/*vhosts to /etc/nginx/conf.d/*conf
+fix020(){
+    echo "$TASK_CHAR Running fix for v0.2.0 ..."
+    if [ -f /etc/nginx/conf.d/vhosts.conf ]; then
+        rm /etc/nginx/conf.d/vhosts.conf
+    fi
+    if [ -L "/etc/nginx/sites-enabled/$DOMAINFOUND.vhost" ]; then
+        unlink /etc/nginx/sites-enabled/$DOMAINFOUND.vhost
+    fi
+    if [ -f /etc/nginx/sites-available/$DOMAINFOUND.vhost ]; then
+        mv /etc/nginx/sites-available/$DOMAINFOUND.vhost /etc/nginx/conf.d/$DOMAINFOUND.conf
+        echo "$INFO_CHAR Fixed $DOMAINFOUND"
+    fi
+    echo "$CHECK_CHAR Fix v0.2.0 complete."
 }
 
 gitInitNode() {
@@ -1619,6 +1630,9 @@ case "$ARG_CALL" in
                 disableFirewall
                 ;;
         esac
+        ;;
+    "fix")
+        fix020
         ;;
     "import")
         # optional; get filename argument
