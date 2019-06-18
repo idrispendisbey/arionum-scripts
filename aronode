@@ -291,6 +291,11 @@ serverUpgrade() {
     packageInstallGeneral
     echo "$CHECK_CHAR Packages updated."
 
+    # apply any fixes
+
+    # delete vhost defaults (if any)
+    fix021
+
     # set/fix mysql config
     mysqlOptimizeConfig
 
@@ -887,15 +892,8 @@ setupNginxVhost() {
     # update nginx user to WEBUSER:WEBGROUP:
     sed -i "s/user  nginx;/user  $WEBOWNER $WEBOWNER;/g" /etc/nginx/nginx.conf
 
-    # create/delete default vhost file(s)
-    if [ -f /etc/nginx/conf.d/default.conf ]; then
-        rm /etc/nginx/conf.d/default.conf
-    fi
-
-    # delete old vhost config (if exists)
-    if [ ! -f /etc/nginx/conf.d/vhosts.conf ]; then
-        rm /etc/nginx/conf.d/vhosts.conf
-    fi
+    # delete vhost defaults
+    fix021
 
     if [ ! -f $ARONODE_PATH/aronode.vhost ]; then
         echo "$ERROR_CHAR setupNginxVhost() $ARONODE_PATH/aronode.vhost not found. Check github, download it, try again.";
@@ -938,6 +936,32 @@ fix020(){
         echo "$INFO_CHAR Fixed $DOMAINFOUND"
     fi
     echo "$CHECK_CHAR Fix v0.2.0 complete."
+}
+# v0.2.1 changes: delete every kind of default vhost you can find
+fix021(){
+    echo "$TASK_CHAR Running fix for v0.2.1 ..."
+    # delete default vhost file(s)
+    if [ -f /etc/nginx/conf.d/default.conf ]; then
+        rm /etc/nginx/conf.d/default.conf
+    fi
+    # delete default vhost file(s)
+    if [ -f /etc/nginx/conf.d/default ]; then
+        rm /etc/nginx/conf.d/default
+    fi
+    if [ -f /etc/nginx/sites-enabled/default ]; then
+        rm /etc/nginx/sites-enabled/default
+    fi
+    if [ -L /etc/nginx/sites-available/default ]; then
+        unlink /etc/nginx/sites-available/default
+    fi
+    if [ -L /etc/nginx/sites-available/default.conf ]; then
+        unlink /etc/nginx/sites-available/default.conf
+    fi
+    # delete old vhost config (if exists)
+    if [ -f /etc/nginx/conf.d/vhosts.conf ]; then
+        rm /etc/nginx/conf.d/vhosts.conf
+    fi
+    echo "$CHECK_CHAR Fix v0.2.1 complete."
 }
 
 gitInitNode() {
