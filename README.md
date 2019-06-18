@@ -16,7 +16,7 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 4. Not responsible if you hose your existing setup
 5. Minimum Hardware Recomendation: 2+ CPU 2GB+ RAM (for node); 4GB+ RAM (for masternode)
 
-## Arionum Node Installation Example  
+## Arionum Node Installation Example   
 `$ sudo su -;`  
 `$ apt-get update && apt-get install git -y;`  
 `$ cd ~; mkdir scripts; cd scripts;`  
@@ -27,8 +27,8 @@ It will clone the Arionum node software from https://github.com/arionum/node and
 IMPORTANT: Once your node is installed, you need to initialize it by visiting http://YOUR.PUBLIC.IP.ADDRESS in your web browser. If you are using a custom domain name then visit http://YOUDOMAINNAME.COM this will start the sync process and then "status" function will work.
 
 ## Fast Sync
-A new install will slowly start syncing from block 1. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.
-`$ aronode mainnet rebuild`
+A new install will slowly start syncing from block 1. To speed this up, we will import a daily snapshot from pxgamer at https://aro.pxgamer.xyz/daily/ The rebuild command will stop your node and DELETE your database data and import a snapshot.  
+`$ aronode mainnet rebuild`  
 
 If you run this command in the future and want the latest snapshot just add the word 'latest' to end of it. The script will use the file if it exists already instead of downloading a new one. 'latest' pulls in a new one.
 
@@ -36,19 +36,19 @@ If you run this command in the future and want the latest snapshot just add the 
 
 You can also use 'backup' (to export your own dump) and 'import' (optionally with a filename if you want to import a different dump that you have).
 
-## Update Aronode script to Latest Version
-
-Automatically (will update both aronode and Arionum node software ...
+## Update Aronode script to Latest Version  
+  
+Automatically (will update both aronode and Arionum node software ...  
 `$ aronode mainnet update`  
 
-Manually ...
+Manually ...  
 `$ cd ~/scripts`  
 `$ git pull origin master`  
 If merge errors because you changed file/permissions then...  
 `$ cd ~/scripts`  
 `$ git fetch --all`  
 `$ git reset --hard origin/master`  
-
+  
 ## Arionum Node Usage  
 `$ bash aronode mainnet install`  
 `$ aronode mainnet upgrade`  
@@ -86,10 +86,10 @@ This script does NOT currently do anything with masternode configs. It does inst
 Follow this section ONLY if you had a node BEFORE block 80,000 or if you just want to do a full re-sync.
 
 Make sure you have latest aronode script TODAY ...
-Go to directory where your aronode script is located and update it.
+Go to directory where your aronode script is located and update it.  
 $ aronode mainnet update;  
 
-Update arionum node code and rebuild node chain from daily snapshot...
+Update arionum node code and rebuild node chain from daily snapshot...  
 $ aronode mainnet upgrade;  
 $ aronode mainnet rebuild latest;  
 $ aronode mainnet status;  
@@ -98,7 +98,7 @@ $ aronode mainnet sync;
 
 ## Uninstall Start Over / Remove
 If you borked setup and you need to start from scratch, you can do the following to purge and reinstall.
-Note this will PURGE/DELETE/DESTROY all mysql, nginx, and php files AND data.
+Note this will PURGE/DELETE/DESTROY all mysql, nginx, and php files AND data.  
 `$ cd ~/scripts;`  
 `$ bash aronode mainnet remove;`  
 `$ bash aronode mainnet install;`  
@@ -118,7 +118,7 @@ To speed up initial sync use the "rebuild" function. This will download a snapsh
 If sync gets stuck try "pop 1" or "pop 10". This will clear the stuck block and it should start syncing again.
 Try not to use "rebuild latest" unless your local snapshot is months old.
 
-... Make sure oyu have latest aronode AND latest arionum node software ...
+... Make sure oyu have latest aronode AND latest arionum node software ...  
 `aronode mainnet update;`  
   
 ... if stuck try pop ...  
