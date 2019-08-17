@@ -620,12 +620,12 @@ packageInstallMysql(){
 
     upMysql
     if [ "$UP_MYSQL" == "no" ]; then
-        apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-        sh -c "echo 'deb [arch=amd64,i386] https://mirrors.evowise.com/mariadb/repo/10.2/ubuntu '$(lsb_release -cs)' main' > /etc/apt/sources.list.d/MariaDB-10.2.list"
-        apt-get -qq update -y
+        #apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+        #sh -c "echo 'deb [arch=amd64,i386] https://mirrors.evowise.com/mariadb/repo/10.2/ubuntu '$(lsb_release -cs)' main' > /etc/apt/sources.list.d/MariaDB-10.2.list"
+        apt-get update -y
         # skip password prompt; will set later
         export DEBIAN_FRONTEND=noninteractive
-        apt-get -qq install mariadb-server mariadb-client -y
+        apt-get install mariadb-server mariadb-client -y
 
         # set/fix mysql config
         mysqlFixConfig
