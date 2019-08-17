@@ -128,10 +128,6 @@ OS_NAME=`lsb_release -c -s` # xenial
 
 
 # Only tested on these OS
-if [ "$UNAME" != "Linux-x86_64" ]; then
-    echo "$ERROR_CHAR Must use a 64 bit Linux-x86_64 system. Wrong operating system."
-    ERROR=true
-fi
 if [ "$OS_DISTRO" != "Ubuntu" ]; then
     echo "$ERROR_CHAR Script is written for Ubuntu xenial/bionic LTS only. Wrong operating system."
     ERROR=true
